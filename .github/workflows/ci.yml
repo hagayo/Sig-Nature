@@ -1,5 +1,4 @@
 name: CI
-
 on:
   push:
   pull_request:
@@ -10,53 +9,41 @@ permissions:
 
 jobs:
   frontend:
-    name: HTML and JavaScript
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate HTML
-        run: npx --yes htmlhint index.html
-      - name: Check JavaScript syntax
-        run: node --check script.js
-      - name: Check required frontend files
-        run: |
-          test -s index.html
-          test -s style.css
-          test -s script.js
+      - name: Install quality tools
+        run: npm install --no-save --no-package-lock htmlhint eslint@9 @eslint/js@9 globals@15 stylelint@16 stylelint-config-standard@36
+      - name: HTML lint
+        run: npx htmlhint index.html
+      - name: JavaScript lint
+        run: npx eslint script.js
+      - name: CSS lint
+        run: npx stylelint style.css
+      - name: JavaScript behavior tests
+        run: node --test tests/*.test.mjs
 
   python:
-    name: Python checks (when added)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Check Python syntax if Python files exist
+      - name: Check Python when added
         shell: bash
         run: |
-          mapfile -d '' files < <(find . -type f -name '*.py' -not -path './.git/*' -print0)
-          if (( ${#files[@]} == 0 )); then
-            echo "No Python files yet; skipping syntax checks."
-          else
-            python - <<'PY'
-          import ast
-          from pathlib import Path
-          for path in Path(".").rglob("*.py"):
-              if ".git" in path.parts:
-                  continue
-              ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-              print("OK:", path)
-          PY
+          if ! find . -name '*.py' -not -path './.git/*' -print -quit | grep -q .; then
+            echo "No Python source yet."
+            exit 0
           fi
-      - name: Run Python unit tests if tests directory exists
-        shell: bash
-        run: |
-          if [[ -d tests ]] && find tests -name 'test*.py' -print -quit | grep -q .; then
-            python -m unittest discover -s tests -p 'test*.py'
-          else
-            echo "No Python unit tests yet; skipping."
+          python -m pip install ruff mypy pytest
+          ruff check .
+          ruff format --check .
+          mypy .
+          if find . -name 'test_*.py' -print -quit | grep -q .; then
+            pytest
           fi
