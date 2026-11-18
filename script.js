@@ -1,12 +1,31 @@
-// The backend contract is intentionally isolated here for later Python integration.
-// POST multipart/form-data to /api/generate with full_name, portrait and api_key.
-// Expected JSON: { signature_png_url: string, animation_webm_url: string }.
-// Do not put production API keys in client-side code or logs.
+// Backend contract: POST multipart/form-data to /api/generate.
+// Expected JSON: { signature_png_url, animation_webm_url }.
 const API_ENDPOINT = "/api/generate";
+const translations = {
+  he: {fullName:"שם מלא",portrait:"תמונת פנים",apiKey:"מפתח API",generate:"הפעל",downloadPng:"הורדת חתימה PNG",downloadVideo:"הורדת סרטון",working:"יוצר חתימה...",ready:"הקבצים מוכנים",serverError:"שגיאה מהשרת",missing:"השרת לא החזיר את שני הקבצים",offline:"לא ניתן להתחבר לשרת. ממשק זה ממתין לחיבור Python.",alt:"חתימה על רקע שקוף",placeholder:"חגי און",toggle:"English",toggleLabel:"Switch to English"},
+  en: {fullName:"Full name",portrait:"Face photo",apiKey:"API key",generate:"Generate",downloadPng:"Download signature PNG",downloadVideo:"Download video",working:"Generating signature...",ready:"Files are ready",serverError:"Server error",missing:"The server did not return both files",offline:"Cannot connect to the server. This interface is awaiting Python integration.",alt:"Signature on transparent background",placeholder:"Your full name",toggle:"עברית",toggleLabel:"מעבר לעברית"}
+};
+let language = "he";
+let statusKey = null;
+let statusDetails = "";
 const form = document.querySelector("#signature-form");
 const status = document.querySelector("#status");
 const results = document.querySelector("#results");
-form.addEventListener("submit", async (event) => {
+const toggle = document.querySelector("#language-toggle");
+function renderLanguage() {
+  const t = translations[language];
+  document.documentElement.lang = language;
+  document.documentElement.dir = language === "he" ? "rtl" : "ltr";
+  document.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t[el.dataset.i18n]; });
+  document.querySelector("#full-name").placeholder = t.placeholder;
+  document.querySelector("#signature-preview").alt = t.alt;
+  toggle.textContent = t.toggle;
+  toggle.setAttribute("aria-label", t.toggleLabel);
+  if (statusKey) status.textContent = t[statusKey] + statusDetails;
+}
+toggle.addEventListener("click", () => { language = language === "he" ? "en" : "he"; renderLanguage(); });
+function setStatus(key, details = "") { statusKey = key; statusDetails = details; status.textContent = translations[language][key] + details; }
+form.addEventListener("submit", async event => {
   event.preventDefault();
   results.hidden = true;
   const button = document.querySelector("#generate");
@@ -15,21 +34,22 @@ form.addEventListener("submit", async (event) => {
   data.set("portrait", document.querySelector("#portrait").files[0]);
   data.set("api_key", document.querySelector("#api-key").value);
   button.disabled = true;
-  status.textContent = "יוצר חתימה...";
+  setStatus("working");
   try {
-    const response = await fetch(API_ENDPOINT, { method: "POST", body: data });
-    if (!response.ok) throw new Error("שגיאה מהשרת (" + response.status + ")");
+    const response = await fetch(API_ENDPOINT, {method:"POST",body:data});
+    if (!response.ok) { setStatus("serverError", " (" + response.status + ")"); return; }
     const payload = await response.json();
-    if (!payload.signature_png_url || !payload.animation_webm_url) throw new Error("השרת לא החזיר את שני הקבצים");
+    if (!payload.signature_png_url || !payload.animation_webm_url) { setStatus("missing"); return; }
     document.querySelector("#signature-preview").src = payload.signature_png_url;
     document.querySelector("#download-png").href = payload.signature_png_url;
     document.querySelector("#animation-preview").src = payload.animation_webm_url;
     document.querySelector("#download-video").href = payload.animation_webm_url;
     results.hidden = false;
-    status.textContent = "הקבצים מוכנים";
+    setStatus("ready");
   } catch (error) {
-    status.textContent = error.message === "Failed to fetch" ? "לא ניתן להתחבר לשרת. ממשק זה ממתין לחיבור Python." : error.message;
+    setStatus("offline");
   } finally {
     button.disabled = false;
   }
 });
+renderLanguage();
