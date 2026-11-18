@@ -2,7 +2,7 @@
 // Expected JSON: { signature_png_url, animation_webm_url }.
 const API_ENDPOINT = "/api/generate";
 const translations = {
-  he: {fullName:"שם מלא",portrait:"תמונת פנים",apiKey:"מפתח API",generate:"הפעל",downloadPng:"הורדת חתימה PNG",downloadVideo:"הורדת סרטון",working:"יוצר חתימה...",ready:"הקבצים מוכנים",serverError:"שגיאה מהשרת",missing:"השרת לא החזיר את שני הקבצים",offline:"לא ניתן להתחבר לשרת. ממשק זה ממתין לחיבור Python.",alt:"חתימה על רקע שקוף",placeholder:"חגי און",toggle:"English",toggleLabel:"Switch to English"},
+  he: {fullName:"שם מלא",portrait:"תמונת פנים",apiKey:"מפתח API",generate:"הפעל",downloadPng:"הורדת חתימה PNG",downloadVideo:"הורדת סרטון",working:"יוצר חתימה...",ready:"הקבצים מוכנים",serverError:"שגיאה מהשרת",missing:"השרת לא החזיר את שני הקבצים",offline:"לא ניתן להתחבר לשרת. ממשק זה ממתין לחיבור Python.",alt:"חתימה על רקע שקוף",placeholder:"שם מלא",toggle:"English",toggleLabel:"Switch to English"},
   en: {fullName:"Full name",portrait:"Face photo",apiKey:"API key",generate:"Generate",downloadPng:"Download signature PNG",downloadVideo:"Download video",working:"Generating signature...",ready:"Files are ready",serverError:"Server error",missing:"The server did not return both files",offline:"Cannot connect to the server. This interface is awaiting Python integration.",alt:"Signature on transparent background",placeholder:"Your full name",toggle:"עברית",toggleLabel:"מעבר לעברית"}
 };
 let language = "he";
