@@ -73,10 +73,10 @@ test("submit sends user values and renders both results", async () => {
 
 test("English interface translations contain no Hebrew except the Hebrew language switch", () => {
   const context = {};
-  vm.runInNewContext(source + "\\n;globalThis.__translations = translations;", context);
+  vm.runInNewContext(source + "\n;globalThis.__translations = translations;", context);
   const english = context.__translations.en;
   const hebrew = context.__translations.he;
-  const hebrewLetters = /[\\u0590-\\u05FF]/u;
+  const hebrewLetters = /[\u0590-\u05FF]/u;
   assert.deepEqual(Object.keys(english).sort(), Object.keys(hebrew).sort());
   for (const [key, value] of Object.entries(english)) {
     if (key === "toggle" || key === "toggleLabel") continue;
