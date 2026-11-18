@@ -77,7 +77,7 @@ test("English interface translations contain no Hebrew except the Hebrew languag
   const english = context.__translations.en;
   const hebrew = context.__translations.he;
   const hebrewLetters = /[\u0590-\u05FF]/u;
-  assert.deepEqual(Object.keys(english).sort(), Object.keys(hebrew).sort());
+  assert.equal(JSON.stringify(Object.keys(english).sort()), JSON.stringify(Object.keys(hebrew).sort()));
   for (const [key, value] of Object.entries(english)) {
     if (key === "toggle" || key === "toggleLabel") continue;
     assert.equal(hebrewLetters.test(value), false, `Hebrew characters in English translation: ${key}`);
