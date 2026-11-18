@@ -70,3 +70,28 @@ test("submit sends user values and renders both results", async () => {
   assert.equal(element("#download-png").href, "/signature.png");
   assert.equal(element("#download-video").href, "/signature.webm");
 });
+
+test("English interface translations contain no Hebrew except the Hebrew language switch", () => {
+  const context = {};
+  vm.runInNewContext(source + "\\n;globalThis.__translations = translations;", context);
+  const english = context.__translations.en;
+  const hebrew = context.__translations.he;
+  const hebrewLetters = /[\\u0590-\\u05FF]/u;
+  assert.deepEqual(Object.keys(english).sort(), Object.keys(hebrew).sort());
+  for (const [key, value] of Object.entries(english)) {
+    if (key === "toggle" || key === "toggleLabel") continue;
+    assert.equal(hebrewLetters.test(value), false, `Hebrew characters in English translation: ${key}`);
+  }
+  assert.equal(english.toggle, "עברית");
+});
+
+test("English mode shows English interface strings while preserving Hebrew user input", () => {
+  const { element, root } = setup();
+  const name = element("#full-name");
+  name.value = "שם משתמש";
+  element("#language-toggle").handlers.click();
+  assert.equal(root.lang, "en");
+  assert.equal(name.placeholder, "Your full name");
+  assert.equal(element("#signature-preview").alt, "Signature on transparent background");
+  assert.equal(name.value, "שם משתמש");
+});
