@@ -44,7 +44,7 @@ async def generate(
 @app.get("/api/assets/{asset_id}/{filename}")
 def serve_asset(asset_id: str, filename: str) -> FileResponse:
     """Serve only the two supported output formats from a generated asset."""
-    if len(asset_id) != 32 or any(char not in "0123456789abcdef" for char in asset_id):
+    if len(asset_id) != 32 or any(\n        char not in "0123456789abcdef" for char in asset_id\n    ):
         raise HTTPException(status_code=404, detail="Asset not found")
     if filename not in {"signature.png", "signature.webm"}:
         raise HTTPException(status_code=404, detail="Asset not found")
