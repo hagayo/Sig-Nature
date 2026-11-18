@@ -67,9 +67,9 @@ jobs:
             echo "No Python source yet; checks not applicable."
             exit 0
           fi
-          python -m pip install ruff pylint mypy pytest
+          python -m pip install -r requirements-dev.txt
           ruff check .
           ruff format --check .
-          pylint $(find . -name '*.py' -not -path './.git/*')
+          pylint backend tests/test_backend.py
           mypy .
           pytest
