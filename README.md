@@ -127,8 +127,18 @@ assets under `backend/assets/` and FFmpeg with `libx264`.
 
 ```sh
 python -m pytest -q
-node --test tests/*.test.mjs
+npm install
+npm test
+npm run lint:js
+npm run lint:css
+npx playwright install chromium
+npm run test:browser
 ```
+
+The three HTML pages share a single CSS token system and JavaScript controller.
+Browser regression tests check mobile overflow, Hebrew/English navigation,
+localized error messages, image analysis results and old-video cleanup.
+The `npm` scripts work without Unix shell glob expansion on Windows.
 
 External OpenAI calls are mocked in the tests, so no API credits are spent. FFmpeg is needed for the local cinematic MP4 pipeline test. The integration test renders 1280×720 photographic frames and may take longer than the other unit tests. The old GitHub workflow remains parked in `ci-disabled/ci.yml`; no workflows are active under `.github/workflows/`.
 
