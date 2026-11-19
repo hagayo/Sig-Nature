@@ -52,3 +52,47 @@ def test_out_of_bounds_path_rejected(tmp_path: Path) -> None:
     path = PenPath(((1, 1), (800, 1)))
     with pytest.raises(ValueError, match="outside"):
         render_frames(path, tmp_path)
+
+
+def test_handwriting_artwork_never_reveals_untraced_pixels(tmp_path: Path) -> None:
+    from PIL import ImageDraw
+    artwork = Image.new("L", (720, 720), 0)
+    d = ImageDraw.Draw(artwork)
+    d.line(((60, 300), (620, 300)), fill=255, width=6)
+    d.line(((60, 420), (620, 420)), fill=255, width=6)  # Not on the pen route.
+    path = PenPath(
+        ((60, 300), (620, 300)),
+        artwork=artwork,
+        reveal_width=10,
+    )
+    final = render_signature(path, tmp_path / "ink.png")
+    render_frames(path, tmp_path / "frames")
+    with Image.open(final) as ink:
+        assert ink.getpixel((300, 300))[3] > 0
+        assert ink.getpixel((300, 420))[3] == 0
+    with Image.open(tmp_path / "frames" / "frame_000.png") as start:
+        assert start.getpixel((540, 300)) == (255, 255, 255)
+    with Image.open(tmp_path / "frames" / "frame_035.png") as end:
+        assert end.getpixel((300, 300))[:3] == (25, 42, 115)
+        assert end.getpixel((300, 420)) == (255, 255, 255)
+
+
+def test_all_frames_reveal_only_prefixes_of_one_stroke(tmp_path: Path) -> None:
+    from PIL import ImageDraw
+    art = Image.new("L", (720, 720), 0)
+    ImageDraw.Draw(art).line([(90, 360), (610, 360)], fill=255, width=6)
+    path = PenPath(((90, 360), (610, 360)), artwork=art, reveal_width=12)
+    folder = tmp_path / "frames"
+    render_frames(path, folder)
+    # The brush hides its own tip in a small area, so inspect a fixed band
+    # well away from the pen illustration for monotonic ink accumulation.
+    seen = set()
+    for step in range(FRAME_COUNT):
+        with Image.open(folder / f"frame_{step:03d}.png") as frame:
+            visible = {
+                x for x in range(100, 550, 10)
+                if frame.getpixel((x, 360))[:3] == (25, 42, 115)
+            }
+        assert seen.issubset(visible)
+        seen = visible
+    assert len(seen) >= 40
