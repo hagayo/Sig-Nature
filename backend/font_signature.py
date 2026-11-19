@@ -125,6 +125,14 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
         raise ValueError('Name is too long or canvas too small')
     font_size=min(115,round((size[0]-130)/max(5,len(clean)*.68)))
     font=get_font(font_size,font_path)
+    # Fit long names even when the portrait produces wide, spaced letters.
+    for _ in range(5):
+        advance=sum((font.getlength(c)*style.spacing*max(1,style.width)
+                     if c != ' ' else font_size*.37*style.spacing)
+                    for c in clean)
+        if advance <= size[0]-155: break
+        font_size=max(10,int(font_size*(size[0]-165)/advance))
+        font=get_font(font_size,font_path)
     glyphs=Image.new('L',size,0)
     cursor=float(size[0]-65)
     baseline=size[1]*.5+36
@@ -191,7 +199,7 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
             ImageDraw.Draw(glyphs).line([a]+join,fill=130,width=2)
             all_points.extend(join);pressures.extend([.18]*len(join))
         all_points.extend(points);pressures.extend([style.pressure]*len(points))
-        cursor-=font.getlength(char)*style.spacing
+        cursor-=font.getlength(char)*style.spacing*style.width
         index+=1
     if style.flourish > .12:
         start=all_points[-1]
