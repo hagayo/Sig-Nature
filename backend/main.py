@@ -107,7 +107,8 @@ async def generate(
         raise HTTPException(422, str(exc)) from exc
     except httpx.HTTPStatusError as exc:
         raise _provider_problem(exc) from exc
-    except (httpx.RequestError, subprocess.CalledProcessError, FileNotFoundError, RuntimeError) as exc:
+    except (httpx.RequestError, subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            FileNotFoundError, RuntimeError) as exc:
         raise HTTPException(503, "Image analysis or media generation unavailable") from exc
     return present_results(assets)
 
