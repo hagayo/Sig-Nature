@@ -43,7 +43,7 @@ def test_analyze_portrait_http_payload(monkeypatch: pytest.MonkeyPatch) -> None:
             return httpx.Response(
                 200, request=httpx.Request("POST", url),
                 json={"status": "completed", "output": [{
-                    "content": [{"type": "output_text", "text": __import__("json").dumps(answer)}]
+                    "content": [{"type": "output_text", "text": json.dumps(answer)}]
                 }]},
             )
 
