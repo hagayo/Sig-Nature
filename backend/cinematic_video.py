@@ -84,6 +84,7 @@ def _optical_layers():
     return xx,yy,illumination
 
 
+@lru_cache(maxsize=2)
 def _photo_sprite(scale: float = 2.30) -> tuple[np.ndarray, tuple[float,float]]:
     photo,_=_assets()
     sprite=cv2.resize(photo,None,fx=scale,fy=scale,interpolation=cv2.INTER_CUBIC)
@@ -126,7 +127,11 @@ class _Ink:
         else:
             self.artwork=None
         seed=np.random.default_rng(1803)
-        self.pigment=(seed.uniform(.91,1.0,size=self.mask.shape)*255).astype(np.uint8)
+        pigment=(seed.uniform(.91,1.0,size=self.mask.shape)*255).astype(np.uint8)
+        # Precombine static pigment and glyph texture rather than multiplying
+        # two full-resolution masks again for every filmed frame.
+        self.ink_texture=(cv2.multiply(self.artwork,pigment,scale=1/255)
+                          if self.artwork is not None else pigment)
 
     def _draw(self,a,b,pressure):
         aa=lambda p:(int(round(p[0]*self.scale)),int(round(p[1]*self.scale)))
@@ -160,13 +165,9 @@ class _Ink:
         return self.alpha()
 
     def alpha(self)->np.ndarray:
-        if self.artwork is not None:
-            # Font pixels cannot appear before the actual nib touches them.
-            a=cv2.multiply(self.mask,self.artwork,scale=1/255)
-        else:
-            a=self.mask
-        # Microscopic broken pigment edges from the physical paper fibres.
-        return cv2.multiply(a,self.pigment,scale=1/255)
+        # Only ink physically touched by the nib can appear. Preserve a
+        # stable paper-grain pattern while minimizing per-frame work.
+        return cv2.multiply(self.mask,self.ink_texture,scale=1/255)
 
 
 def _blend(base:np.ndarray, overlay:np.ndarray, opacity:np.ndarray)->np.ndarray:
