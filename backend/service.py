@@ -86,6 +86,9 @@ async def generate_signature(
     # Preflight local dependencies BEFORE using the user's paid OpenAI credits.
     # Both checks run outside the asynchronous server event loop.
     await asyncio.to_thread(ensure_video_encoder)
+    # A missing photographic plate must fail before the paid vision request.
+    from backend.cinematic_video import validate_cinematic_materials
+    await asyncio.to_thread(validate_cinematic_materials)
     if is_hebrew:
         from backend.font_signature import get_font
         await asyncio.to_thread(get_font, 64)
