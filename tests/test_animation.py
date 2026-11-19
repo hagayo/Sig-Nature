@@ -1,4 +1,4 @@
-"""Tests for the frame-to-video encoder contract."""
+"""Tests for the frame-to-MP4 encoder contract."""
 
 from pathlib import Path
 import subprocess
@@ -16,6 +16,11 @@ def test_timing_is_exact() -> None:
 
 def test_rejects_missing_frame(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="frame_000.png"):
+        encode_animation(tmp_path, tmp_path / "result.mp4")
+
+
+def test_rejects_wrong_format(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="Expected .mp4"):
         encode_animation(tmp_path, tmp_path / "result.webm")
 
 
@@ -32,7 +37,10 @@ def test_encodes_numbered_frames(
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-    output = tmp_path / "result.webm"
+    output = tmp_path / "result.mp4"
     assert encode_animation(tmp_path, output) == output
-    assert recorded[0][recorded[0].index("-framerate") + 1] == "24"
-    assert recorded[0][recorded[0].index("-frames:v") + 1] == "36"
+    command = recorded[0]
+    assert command[command.index("-framerate") + 1] == "24"
+    assert command[command.index("-frames:v") + 1] == "36"
+    assert command[command.index("-c:v") + 1] == "libx264"
+    assert command[command.index("-movflags") + 1] == "+faststart"
