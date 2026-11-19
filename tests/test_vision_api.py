@@ -50,4 +50,4 @@ def test_analyze_portrait_http_payload(
     assert calls[0]["headers"] == {"Authorization": "Bearer test-user-key"}
     body = calls[0]["json"]
     assert body["text"]["format"]["type"] == "json_schema"
-    assert body["input"][0]["content"][1]["image_url"].startswith("data:image/png;base64,")
+    assert body["input"][0]["content"][1]["image_url"].startswith("data:image/jpeg;base64,")
