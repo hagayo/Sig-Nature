@@ -103,7 +103,8 @@ def _make_glyph(
 
 
 def _connector(a: Point, b: Point, previous: Point | None,
-               following: Point | None, smoothness: float) -> list[Point]:
+               following: Point | None, smoothness: float,
+               word_break: bool = False) -> list[Point]:
     """A tangent-aware pen-down join instead of a straight artificial bridge."""
     vx,vy = b[0]-a[0],b[1]-a[1]
     span = hypot(vx,vy)
@@ -116,6 +117,10 @@ def _connector(a: Point, b: Point, previous: Point | None,
     reach = min(span*.27,25.*(.7+.3*smoothness))
     c1 = (a[0] + in_v[0]/in_n*reach, a[1]+in_v[1]/in_n*reach)
     c2 = (b[0] - out_v[0]/out_n*reach, b[1]-out_v[1]/out_n*reach)
+    if word_break:
+        sag = min(27., 6. + span*.14) * (.7 + .3*smoothness)
+        c1 = (a[0] + vx*.30, a[1] + sag)
+        c2 = (b[0] - vx*.30, b[1] + sag)
     steps = max(10,min(56,round(span/1.3)))
     result = []
     for i in range(1,steps+1):
@@ -235,7 +240,8 @@ def create_personal_signature(
                 transition=_connector(path[-1],trace[0],
                                       path[-2] if len(path)>1 else None,
                                       trace[1] if len(trace)>1 else None,
-                                      style.roundness)
+                                      style.roundness,
+                                      word_break=run.gap_before and glyph is glyphs[0])
                 connectors.append(([path[-1]]+transition,
                                    style.pressure))
                 path.extend(transition)
