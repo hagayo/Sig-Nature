@@ -1,5 +1,8 @@
 """Production generation: portrait analysis -> handwriting -> rendered assets."""
 import asyncio
+import os
+import re
+import time
 from functools import lru_cache
 import shutil
 import subprocess
@@ -14,6 +17,42 @@ from backend.signature_planner import validate_name
 from backend.style_mapping import style_from_portrait
 
 ASSET_DIR = Path(__file__).resolve().parent / "generated"
+ASSET_ID = re.compile(r"^[0-9a-f]{32}$")
+
+
+def purge_expired_assets(directory: Path, now: float | None = None) -> int:
+    """Optionally expire only completed asset folders. Off unless configured.
+
+    A positive SIG_NATURE_ASSET_TTL_HOURS enables cleanup on the next
+    generation request, not a background job. Active staging folders and
+    unrelated files are deliberately never touched.
+    """
+    raw = os.environ.get("SIG_NATURE_ASSET_TTL_HOURS")
+    if raw is None:
+        return 0
+    try:
+        hours = float(raw)
+    except ValueError as exc:
+        raise RuntimeError("Invalid asset retention configuration") from exc
+    from math import isfinite
+    if not isfinite(hours) or hours <= 0:
+        raise RuntimeError("Asset retention hours must be positive and finite")
+    cutoff = (time.time() if now is None else now) - hours * 3600
+    if not directory.is_dir():
+        return 0
+    removed = 0
+    for entry in directory.iterdir():
+        if (not ASSET_ID.fullmatch(entry.name)
+                or entry.is_symlink() or not entry.is_dir()):
+            continue
+        try:
+            if entry.stat().st_mtime < cutoff:
+                shutil.rmtree(entry)
+                removed += 1
+        except FileNotFoundError:
+            continue  # Another request has already cleaned this entry.
+    return removed
+
 
 
 @lru_cache(maxsize=1)
@@ -50,6 +89,7 @@ async def generate_signature(
     if is_hebrew:
         from backend.font_signature import get_font
         await asyncio.to_thread(get_font, 64)
+    await asyncio.to_thread(purge_expired_assets, ASSET_DIR)
     impression = await analyze_portrait(portrait, api_key)
     handwriting = style_from_portrait(impression)
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
