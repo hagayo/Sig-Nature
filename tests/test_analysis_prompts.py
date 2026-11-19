@@ -94,7 +94,7 @@ def test_signature_prompt_and_thin_ink_preserved(
     with Image.open(BytesIO(picture)) as image:
         assert image.format == "PNG"
         assert image.mode == "RGB"
-        assert image.getpixel((210, 160))[2] > image.getpixel((210, 160))[0]
+        assert any(blue > red for red, green, blue in image.getdata())
 
 
 def test_no_real_claims_and_no_generic_prompt() -> None:
@@ -114,3 +114,30 @@ def test_unexpected_languages_rejected(language: str) -> None:
         portrait_analysis.portrait_prompt(language)
     with pytest.raises(ValueError):
         signature_analysis.signature_prompt(language)
+
+
+
+def test_signature_photo_crops_large_blank_margins_before_scaling() -> None:
+    from backend.signature_analysis import prepare_signature_for_vision
+    image = Image.new("RGB", (2400, 1200), "white")
+    draw = ImageDraw.Draw(image)
+    draw.line([(1650, 520), (1800, 490), (2010, 545)],
+              fill=(10, 25, 100), width=2)
+    original = BytesIO()
+    image.save(original, "PNG")
+    prepared = prepare_signature_for_vision(original.getvalue())
+    with Image.open(BytesIO(prepared)) as crop:
+        assert crop.width < 700
+        assert crop.height < 300
+        assert any(blue > red for red, green, blue in crop.getdata())
+
+
+def test_whole_image_ink_does_not_trigger_destructive_crop() -> None:
+    from backend.signature_analysis import prepare_signature_for_vision
+    image = Image.new("RGB", (120, 80), "white")
+    draw = ImageDraw.Draw(image)
+    draw.line([(1, 1), (119, 79)], fill="navy", width=2)
+    source = BytesIO()
+    image.save(source, "PNG")
+    with Image.open(BytesIO(prepare_signature_for_vision(source.getvalue()))) as result:
+        assert result.size == image.size
