@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from backend.animation import FRAME_COUNT
+from backend.motion import MotionTimeline, FRAME_RATE
 from backend.pen_path import PenPath, render_frames, render_signature
 
 
@@ -37,7 +37,7 @@ def test_render_progress_and_transparent_final(tmp_path: Path) -> None:
     frames_dir = tmp_path / "frames"
     render_frames(path, frames_dir)
     frames = sorted(frames_dir.glob("frame_*.png"))
-    assert len(frames) == FRAME_COUNT
+    assert len(frames) == MotionTimeline(path).frame_count
     with Image.open(frames[0]) as first, Image.open(frames[-1]) as last:
         assert first.getpixel((500, 100)) == (255, 255, 255)
         assert last.getpixel((500, 100))[:3] == (25, 42, 115)
@@ -72,7 +72,8 @@ def test_handwriting_artwork_never_reveals_untraced_pixels(tmp_path: Path) -> No
         assert ink.getpixel((300, 420))[3] == 0
     with Image.open(tmp_path / "frames" / "frame_000.png") as start:
         assert start.getpixel((540, 300)) == (255, 255, 255)
-    with Image.open(tmp_path / "frames" / "frame_035.png") as end:
+    last_frame = MotionTimeline(path).frame_count - 1
+    with Image.open(tmp_path / "frames" / f"frame_{last_frame:03d}.png") as end:
         assert end.getpixel((300, 300))[:3] == (25, 42, 115)
         assert end.getpixel((300, 420)) == (255, 255, 255)
 
@@ -87,8 +88,9 @@ def test_all_frames_reveal_only_prefixes_of_one_stroke(tmp_path: Path) -> None:
     # Inspect transparent ink, not the pen barrel that may cover the live tip.
     from backend.pen_path import _ink_layer
     seen = set()
-    for step in range(FRAME_COUNT):
-        progress = ((step + 1) / FRAME_COUNT) ** (1.3 - .6 * path.tempo)
+    motion = MotionTimeline(path)
+    for step in range(motion.frame_count):
+        progress = motion.at(step/FRAME_RATE).progress
         ink = _ink_layer(
             path.trace(progress), (720, 720), path.artwork, path.reveal_width,
         )
