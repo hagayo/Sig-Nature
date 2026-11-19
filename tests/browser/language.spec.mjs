@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
-const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const html = readFileSync(new URL("../../index.html", import.meta.url), "utf8");
 const lines = html.split(/\r?\n/);
 const hebrew = /[\u05D0-\u05EA]/u;
 const latin = /[A-Za-z]/u;
