@@ -12,9 +12,9 @@ from backend.pen_path import render_frames, render_signature
 from backend.signature_planner import plan_signature
 
 
-def generate_preview(full_name: str, output_dir: Path) -> tuple[Path, Path]:
+def generate_preview(\n    full_name: str, output_dir: Path, portrait: bytes = b""\n) -> tuple[Path, Path]:
     """Produce a transparent signature PNG and a 1.5-second H.264 MP4."""
-    path = plan_signature(full_name)
+    path = plan_signature(full_name, portrait=portrait)
     output_dir.mkdir(parents=True, exist_ok=True)
     png = render_signature(path, output_dir / "signature.png")
     mp4 = output_dir / "signature.mp4"
