@@ -65,8 +65,12 @@ async def request_vision(
         raise VisionResponseError("Analysis output is missing")
     parts = []
     for item in output:
-        if not isinstance(item, dict) or not isinstance(item.get("content"), list):
-            raise VisionResponseError("Malformed output content")
+        if not isinstance(item, dict):
+            raise VisionResponseError("Malformed output item")
+        if item.get("type") not in (None, "message"):
+            continue  # Ignore optional non-message response items.
+        if not isinstance(item.get("content"), list):
+            raise VisionResponseError("Malformed message content")
         for part in item["content"]:
             if not isinstance(part, dict):
                 raise VisionResponseError("Malformed model output item")
