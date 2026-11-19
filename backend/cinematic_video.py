@@ -231,13 +231,11 @@ class CinematicCamera:
     def transform(self, nib, seconds_after:float)->np.ndarray:
         target=np.array(nib,dtype=np.float64)
         # Shoulder-height camera tracks ink as the wrist progresses right-to-left.
-        self.center+=np.clip(target-self.center,-20,20)*.21
-        # Keep the live nib in the camera's safe region after fast flourishes.
-        delta=target-self.center
-        if abs(delta[0])>150:
-            self.center[0]+=np.sign(delta[0])*(abs(delta[0])-150)*.75
-        if abs(delta[1])>140:
-            self.center[1]+=np.sign(delta[1])*(abs(delta[1])-140)*.75
+        # A stabilized macro rig follows the nib closely enough that the
+        # photographic pen shaft always exits beyond the image border.
+        # A lagging camera would expose the right edge of the reference plate.
+        self.center[0]+=(target[0]-self.center[0])*.80
+        self.center[1]+=(target[1]-self.center[1])*.70
         blend=np.clip(seconds_after/REVEAL_SECONDS,0,1)
         blend=blend*blend*(3-2*blend)
         focus=(1-blend)*self.center+blend*self.final
