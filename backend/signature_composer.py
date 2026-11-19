@@ -281,7 +281,14 @@ def create_personal_signature(
                   joint="curve")
     # Enforce fit after all glyphs and the flourish are known; no hard-coded
     # cursor positions or changes in letter order for long surnames.
-    scale = min((size[0]-110)/raw_width, (size[1]-240)/raw_height, 1.65)
+    # Proportional margins also support small/non-square library canvases.
+    margin_x = min(55., max(12., size[0]*.08))
+    margin_y = min(120., max(16., size[1]*.22))
+    scale = min(
+        (size[0]-2*margin_x)/raw_width,
+        (size[1]-2*margin_y)/raw_height,
+        1.65,
+    )
     scaled_w = max(1,round(raw_width*scale))
     scaled_h = max(1,round(raw_height*scale))
     off_x=round((size[0]-scaled_w)/2)
