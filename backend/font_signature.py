@@ -1,7 +1,8 @@
-"""Noto Sans Hebrew letter geometry routed as one continuous pen-down stroke.
+"""Handwriting-based Hebrew signature, derived from Gveret Levin glyphs.
 
-Based on the real font silhouettes, not hand-invented symbol sketches.
-Noto Sans Hebrew is OFL-1.1; no font binaries are stored in this repository.
+The open handwriting font supplies recognisable Hebrew letterforms. The pen
+route, joins and final flourishes are generated as ONE visible continuous ink
+trajectory, never an unrelated overlaid animation.
 """
 from collections import deque
 from hashlib import sha256
@@ -14,16 +15,19 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 HEBREW = set('אבגדהוזחטיכלמנסעפצקרשתךםןףץ')
 NEIGHBORS = ((1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,1),(-1,-1),(1,-1))
-FONT_URL = ('https://raw.githubusercontent.com/google/fonts/main/ofl/'
-            'notosanshebrew/NotoSansHebrew%5Bwdth%2Cwght%5D.ttf')
+FONT_URL = ('https://raw.githubusercontent.com/AlefAlefAlef/gveret-levin/'
+            'master/fonts/ttf/GveretLevin-Regular.ttf')
 
 
 def get_font(size: int, font_path: str | None = None) -> ImageFont.FreeTypeFont:
-    paths = [font_path, os.environ.get('SIG_NATURE_HEBREW_FONT'),
-             '/usr/share/fonts/truetype/noto/NotoSansHebrew-Light.ttf',
-             '/usr/share/fonts/truetype/noto/NotoSansHebrew-Regular.ttf',
-             'C:/Windows/Fonts/NotoSansHebrew-Regular.ttf']
-    cached = Path.home()/'.cache'/'sig-nature'/'NotoSansHebrew-variable.ttf'
+    paths = [
+        font_path,
+        os.environ.get('SIG_NATURE_HEBREW_FONT'),
+        'C:/Windows/Fonts/GveretLevin-Regular.ttf',
+        '/usr/local/share/fonts/GveretLevin-Regular.ttf',
+        '/usr/share/fonts/truetype/gveret-levin/GveretLevin-Regular.ttf',
+    ]
+    cached = Path.home()/'.cache'/'sig-nature'/'GveretLevin-Regular.ttf'
     paths.append(str(cached))
     font_file = next((p for p in paths if p and Path(p).is_file()), None)
     if font_file is None:
@@ -32,16 +36,12 @@ def get_font(size: int, font_path: str | None = None) -> ImageFont.FreeTypeFont:
             with urlopen(FONT_URL, timeout=20) as response:
                 data = response.read(1_000_001)
             if len(data)>1_000_000 or data[:4] != b'\x00\x01\x00\x00':
-                raise ValueError('Downloaded Noto font was invalid')
+                raise ValueError('Downloaded Gveret Levin font was invalid')
             cached.write_bytes(data)
         except Exception as exc:
-            raise RuntimeError('Noto Sans Hebrew unavailable; download it from Google Fonts or set SIG_NATURE_HEBREW_FONT') from exc
+            raise RuntimeError('Gveret Levin handwriting font unavailable; install it or set SIG_NATURE_HEBREW_FONT') from exc
         font_file = str(cached)
     font = ImageFont.truetype(font_file, size)
-    if 'variable' in font_file.lower():
-        axes = font.get_variation_axes()
-        values = [300 if b'weight' in a['name'].lower() else a['default'] for a in axes]
-        font.set_variation_by_axes(values)
     return font
 
 
@@ -193,28 +193,78 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
         points=[(x+left,y+top) for x,y in route]
         if all_points:
             a,b=all_points[-1],points[0]
+            # Cubic tangent connector in the same ink weight and writing flow.
+            # The first and last velocities follow the actual ink stroke.
+            px,py = all_points[-2] if len(all_points)>1 else (a[0]+5,a[1])
+            if len(points)>1:
+                qx,qy=points[1]
+            else:
+                qx,qy=b[0]-5,b[1]
+            dx=b[0]-a[0]
+            span=max(3,abs(dx))
+            c1=(a[0]-span*.32,a[1]+(a[1]-py)*.24)
+            c2=(b[0]+span*.30,b[1]-(qy-b[1])*.24)
             join=[]
             for j in range(1,25):
                 t=j/24
-                join.append((a[0]+(b[0]-a[0])*t,
-                             a[1]+(b[1]-a[1])*t+3*sin(t*pi)))
+                u=1-t
+                join.append((u**3*a[0]+3*u*u*t*c1[0]+3*u*t*t*c2[0]+t**3*b[0],
+                             u**3*a[1]+3*u*u*t*c1[1]+3*u*t*t*c2[1]+t**3*b[1]))
             connector=Image.new('L',size,0)
-            ImageDraw.Draw(connector).line([a]+join,fill=130,width=2)
+            ImageDraw.Draw(connector).line([a]+join,fill=220,width=max(2,round(font_size*.034)),joint='curve')
             glyphs=ImageChops.lighter(glyphs,connector)
-            all_points.extend(join);pressures.extend([.18]*len(join))
+            all_points.extend(join)
+            pressures.extend([style.pressure*.87]*len(join))
         all_points.extend(points);pressures.extend([style.pressure]*len(points))
         cursor-=font.getlength(char)*style.spacing*style.width
         index+=1
     if style.flourish > .12:
+        # Finish with a gesture drawn in the same direction as handwriting:
+        # first stretch the last letter; energetic handwriting can curve back
+        # into a continuous underline/loop. This NEVER lifts the nib.
         start=all_points[-1]
-        reach=min(max(0,start[0]-22),font_size*(.14+.55*style.flourish))
-        if reach>3:
-            extension=[(start[0]-reach*(i/36),
-                        start[1]+font_size*.12*style.flourish*sin(pi*i/36)
-                        -font_size*.10*style.rise*i/36)
-                       for i in range(1,37)]
+        reach=min(max(0,start[0]-16),font_size*(.20+1.10*style.flourish))
+        if reach>4:
+            tail=[]
+            for j in range(1,49):
+                t=j/48
+                tail.append((start[0]-reach*t,
+                             start[1]+font_size*.18*style.flourish*sin(pi*t)
+                             -font_size*.10*style.rise*t))
+            all_points.extend(tail)
+            pressures.extend([style.pressure*(.90-.22*(j+1)/48) for j in range(48)])
             connector=Image.new('L',size,0)
-            ImageDraw.Draw(connector).line([start]+extension,fill=130,width=2)
+            artist=ImageDraw.Draw(connector)
+            artist.line([start]+tail,fill=232,width=max(2,round(font_size*.038)),joint='curve')
+            if style.flourish > .60:
+                end=tail[-1]
+                text_right=max(p[0] for p in all_points)
+                length=min((text_right-end[0])*.75,
+                           font_size*(1.3+3.1*style.flourish))
+                base_y=max(p[1] for p in all_points)+font_size*.14
+                c1=(end[0]-font_size*.19,end[1]+font_size*.19)
+                c2=(end[0]+length*.25,base_y+font_size*.14)
+                underline=[]
+                for j in range(1,65):
+                    t=j/64
+                    u=1-t
+                    p=(u**3*end[0]+3*u*u*t*c1[0]+3*u*t*t*c2[0]+t**3*(end[0]+length),
+                       u**3*end[1]+3*u*u*t*c1[1]+3*u*t*t*c2[1]+t**3*base_y)
+                    underline.append(p)
+                # On expressive signatures, loop back elegantly at the end.
+                if style.flourish>.85:
+                    e=underline[-1]
+                    underline.extend((
+                        (e[0]+font_size*.16*sin(pi*j/32),
+                         e[1]-font_size*.22*sin(2*pi*j/32))
+                        for j in range(1,33)
+                    ))
+                all_points.extend(underline)
+                pressures.extend([style.pressure*.65]*len(underline))
+                artist.line([end]+underline,fill=225,
+                            width=max(2,round(font_size*.034)),joint='curve')
             glyphs=ImageChops.lighter(glyphs,connector)
-            all_points.extend(extension);pressures.extend([.23]*len(extension))
+    # Preserve image bounds for tall ascenders and the optional underline.
+    if any(x<1 or y<1 or x>=size[0]-1 or y>=size[1]-1 for x,y in all_points):
+        raise ValueError('Signature flourishes do not fit the canvas')
     return PenPath(tuple(all_points),tuple(pressures),style.speed,artwork=glyphs)
