@@ -51,6 +51,10 @@ class NoVisibleFaceError(ValueError):
     """The image has no adequately visible face to analyze."""
 
 
+class PortraitResponseError(ValueError):
+    """The provider returned structurally invalid portrait scores or evidence."""
+
+
 def parse_style(text: str) -> PortraitStyle:
     """Retain the tested strict score parser shared by every route."""
     payload = json.loads(text)
@@ -228,7 +232,12 @@ async def analyze_portrait_detailed(
         portrait_prompt(language), "portrait_signature_style",
         portrait_schema(), max_output_tokens=1400,
     )
-    return parse_reading(text)
+    try:
+        return parse_reading(text)
+    except NoVisibleFaceError:
+        raise
+    except (ValueError, TypeError) as exc:
+        raise PortraitResponseError("Invalid structured portrait analysis") from exc
 
 
 async def analyze_portrait(portrait: bytes, api_key: str) -> PortraitStyle:
