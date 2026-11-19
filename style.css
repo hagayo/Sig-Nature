@@ -177,7 +177,7 @@ h1 {
 }
 @keyframes rotate { to { transform: rotate(360deg); } }
 .status { margin: var(--space-3) 0 0; color: var(--color-muted); overflow-wrap: anywhere; }
-.status:empty { display: none; }
+.status:empty { margin: 0; }
 .status[data-error="true"] { color: var(--color-error); }
 .result-panel { display: grid; gap: var(--space-3); margin-top: var(--space-5); }
 .result-panel img, .result-panel video {
