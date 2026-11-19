@@ -91,3 +91,31 @@ def test_no_paid_api_call_for_unsupported_name(
         files={"portrait": ("photo.png", photo_bytes(), "image/png")},
     )
     assert response.status_code == 422
+
+
+def test_api_responses_are_not_cached() -> None:
+    response = client.get("/api/assets/not-valid/signature.png")
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_missing_handwriting_font_prevents_paid_api_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend import font_signature
+    async def forbidden(*args: object) -> None:
+        raise AssertionError("Vision API must not be called if font is unavailable")
+
+    def missing_font(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("Font is unavailable")
+
+    monkeypatch.setattr(font_signature, "get_font", missing_font)
+    monkeypatch.setattr(service, "analyze_portrait", forbidden)
+    response = client.post(
+        "/api/generate",
+        data={"full_name": "חגי און", "api_key": "fake-local-key"},
+        files={"portrait": ("photo.png", photo_bytes(), "image/png")},
+    )
+    assert response.status_code == 503
+    assert response.headers["cache-control"] == "no-store"
