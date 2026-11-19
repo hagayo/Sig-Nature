@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from backend.portrait_analysis import analyze_portrait, validate_portrait
 from backend.preview import generate_preview
-from backend.signature_planner import plan_signature
+from backend.signature_planner import validate_name
 from backend.style_mapping import style_from_portrait
 
 ASSET_DIR = Path(__file__).resolve().parent / "generated"
@@ -26,7 +26,7 @@ async def generate_signature(
 ) -> GeneratedAssets:
     """Generate photo-specific ink and video; do not store photo or API key."""
     validate_portrait(portrait)
-    plan_signature(full_name)  # Reject unsupported names before a paid API call.
+    validate_name(full_name)  # Reject unsupported names before a paid API call.
     impression = await analyze_portrait(portrait, api_key)
     handwriting = style_from_portrait(impression)
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
