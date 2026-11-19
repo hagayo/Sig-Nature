@@ -1,9 +1,9 @@
 """The only source of truth for signature ink is a single pen-down path."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import hypot, isfinite
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageChops
 
 from backend.animation import FRAME_COUNT
 
@@ -18,6 +18,7 @@ class PenPath:
     points: tuple[Point, ...]
     pressures: tuple[float, ...] = ()
     tempo: float = 0.5
+    artwork: Image.Image | None = field(default=None, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         if len(self.points) < 2:
@@ -69,6 +70,8 @@ class PenPath:
 
 
 def _validate_bounds(path:PenPath,size:tuple[int,int])->None:
+    if path.artwork is not None and path.artwork.size != size:
+        raise ValueError("Artwork size does not match output canvas")
     if min(size) <= 0:
         raise ValueError("Canvas dimensions must be positive")
     if any(not (0 <= x < size[0] and 0 <= y < size[1])
@@ -77,8 +80,22 @@ def _validate_bounds(path:PenPath,size:tuple[int,int])->None:
 
 
 def _ink_layer(trace:tuple[tuple[Point,float],...],
-               size:tuple[int,int])->Image.Image:
-    """Ink thickness and opacity vary with pressure on every local segment."""
+               size:tuple[int,int], artwork:Image.Image | None = None)->Image.Image:
+    """Reveal only font ink touched by the continuous pen path, if supplied."""
+    if artwork is not None:
+        swept=Image.new("L",size,0)
+        writer=ImageDraw.Draw(swept)
+        if len(trace)>1:
+            writer.line([point for point,_ in trace],fill=255,width=19,
+                        joint="curve")
+        else:
+            x,y=trace[0][0]
+            writer.ellipse((x-9,y-9,x+9,y+9),fill=255)
+        alpha=ImageChops.multiply(artwork,swept)
+        result=Image.new("RGBA",size,(*INK,0))
+        result.putalpha(alpha)
+        return result
+    # Legacy line-only rendering remains for Latin glyphs and small test paths.
     layer=Image.new("RGBA",size,(0,0,0,0))
     draw=ImageDraw.Draw(layer)
     for (a,pa),(b,pb) in zip(trace,trace[1:]):
@@ -102,7 +119,7 @@ def render_signature(
     """Transparent PNG exactly matching the final animated ink."""
     _validate_bounds(path,size)
     output.parent.mkdir(parents=True,exist_ok=True)
-    _ink_layer(path.trace(1),size).save(output)
+    _ink_layer(path.trace(1),size,path.artwork).save(output)
     return output
 
 
@@ -134,7 +151,7 @@ def render_frames(
         trace=path.trace(elapsed ** (1.3 - .6*path.tempo))
         paper=Image.new("RGBA",size,"white")
         paper.alpha_composite(_paper_indent(trace,size))
-        paper.alpha_composite(_ink_layer(trace,size))
+        paper.alpha_composite(_ink_layer(trace,size,path.artwork))
         tip,_=trace[-1]
         x,y=tip
         pen=ImageDraw.Draw(paper)
