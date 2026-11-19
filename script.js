@@ -25,6 +25,8 @@ const translations = {
     noFace:"לא נמצאו פנים ברורות בתמונה.",
     noSignature:"לא זוהתה חתימה בתמונה.",
     missingName:"יש להזין שם מלא.",
+    nameTooLong:"השם ארוך מדי ליצירת חתימה קריאה. יש לקצר אותו.",
+    invalidNameScript:"נתמכים שמות בעברית ובאותיות לטיניות בלבד.",
     invalidImage:"יש לבחור תמונה מסוג JPEG, PNG או WebP.",
     imageTooLarge:"גודל התמונה המקסימלי הוא 8MB.",
     missingKey:"יש להזין מפתח API.",
@@ -64,6 +66,8 @@ const translations = {
     noFace:"No clearly visible face was found in the image.",
     noSignature:"No recognizable signature was found in the image.",
     missingName:"Enter your full name.",
+    nameTooLong:"The name is too long for a legible signature.",
+    invalidNameScript:"Only Hebrew and Latin-script names are supported.",
     invalidImage:"Choose a JPEG, PNG or WebP image.",
     imageTooLarge:"Maximum image size is 8 MB.",
     missingKey:"Enter an API key.",
@@ -148,6 +152,7 @@ function setStatus(key, detail = "", error = false) {
   statusDetails = detail;
   status.dataset.error = String(error);
   status.setAttribute("role", error ? "alert" : "status");
+  status.setAttribute("aria-live", error ? "assertive" : "polite");
   status.textContent = translate(key) + detail;
 }
 
@@ -157,6 +162,7 @@ function clearStatus() {
   status.textContent = "";
   status.dataset.error = "false";
   status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
 }
 
 function showMetrics(container, data) {
@@ -245,6 +251,10 @@ function responseErrorKey(code, message) {
   if (code === 422) {
     if (/face|פנים/i.test(message)) return "noFace";
     if (/signature|חתימה/i.test(message)) return "noSignature";
+    if (/too long|exceeds.*limit/i.test(message)) return "nameTooLong";
+    if (/letters|script|characters|unicode|control/i.test(message)) {
+      return "invalidNameScript";
+    }
     return "invalidInput";
   }
   if (code === 429 || code === 502 || code === 503) return "providerError";
