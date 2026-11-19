@@ -58,9 +58,9 @@ async def analyze_portrait(portrait: bytes, api_key: str) -> PortraitStyle:
     if len(portrait) > 8 * 1024 * 1024:
         raise ValueError("Portrait exceeds 8 MB")
     # JPEG, PNG and WebP are supported as data URLs.
-    if portrait.startswith(b"\\xff\\xd8\\xff"):
+    if portrait.startswith(b"\xff\xd8\xff"):
         mime = "image/jpeg"
-    elif portrait.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+    elif portrait.startswith(b"\x89PNG\r\n\x1a\n"):
         mime = "image/png"
     elif portrait[:4] == b"RIFF" and portrait[8:12] == b"WEBP":
         mime = "image/webp"
