@@ -103,13 +103,21 @@ def pen_route(skeleton: set[tuple[int,int]]) -> list[tuple[int,int]]:
     spine=set(); node=goal
     while node is not None: spine.add(node);node=parents[node]
     positions=[start]
-    def walk(node):
+    # Iterative traversal avoids recursion limits on long handwritten loops.
+    stack=[("visit",start)]
+    while stack:
+        operation,node=stack.pop()
+        if operation=="point":
+            positions.append(node)
+            continue
+        actions=[]
         for nxt in children[node]:
             if nxt not in spine:
-                positions.append(nxt);walk(nxt);positions.append(node)
+                actions.extend([("point",nxt),("visit",nxt),("point",node)])
         for nxt in children[node]:
-            if nxt in spine:positions.append(nxt);walk(nxt)
-    walk(start)
+            if nxt in spine:
+                actions.extend([("point",nxt),("visit",nxt)])
+        stack.extend(reversed(actions))
     return positions
 
 
