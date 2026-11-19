@@ -182,8 +182,13 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
                 (image.width+padding,image.height),Image.Transform.AFFINE,
                 (1,-shear,shear*image.height/2-padding/2,0,1,0),
                 resample=Image.Resampling.BICUBIC)
-        if style.pressure>.80:image=image.filter(ImageFilter.MaxFilter(3))
-        # Keep narrow handwritten strokes readable even with light pressure.
+        # Pressure influences physical stroke thickness across the entire
+        # range, without eroding delicate handwritten letterforms.
+        if style.pressure > .88:
+            image = image.filter(ImageFilter.MaxFilter(5))
+        elif style.pressure > .60:
+            image = image.filter(ImageFilter.MaxFilter(3))
+        # Low pressure stays thin rather than deleting essential letter ink.
         left=round(cursor-image.width+style.slant*font_size*.13)
         top=round(baseline+box[1]*style.height-3*style.height
                   -style.rise*index/max(1,count-1)*font_size*.4
@@ -239,7 +244,13 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
             glyphs=ImageChops.lighter(glyphs,connector)
             all_points.extend(join)
             pressures.extend([style.pressure*.87]*len(join))
-        all_points.extend(points);pressures.extend([style.pressure]*len(points))
+        all_points.extend(points)
+        # Slight, repeatable pen-pressure modulation across each letter.
+        # This creates ink texture rather than identical geometric strokes.
+        for point_index in range(len(points)):
+            variation = .075*sin(point_index*.125 + index*1.7)
+            variation += .035*sin(point_index*.049 + index*.9)
+            pressures.append(max(.10, min(1., style.pressure*(1+variation))))
         cursor-=font.getlength(char)*style.spacing*style.width
         index+=1
     if style.flourish > .12:
@@ -302,5 +313,15 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
     sx, sy = all_points[0]
     brush.ellipse((sx-radius, sy-radius, sx+radius, sy+radius), fill=255)
     glyphs = ImageChops.multiply(glyphs, swept)
+    # Make higher pressure visibly darker in both exported PNG and MP4.
+    # This layer is derived entirely from the same continuous pen trajectory.
+    pigment = Image.new("L", size, 0)
+    pig_draw = ImageDraw.Draw(pigment)
+    for i in range(1, len(all_points)):
+        amount = (pressures[i-1] + pressures[i]) / 2
+        darkness = round(180 + 75 * amount)
+        pig_draw.line((all_points[i-1], all_points[i]),
+                      fill=darkness, width=nib_width+2)
+    glyphs = ImageChops.multiply(glyphs, pigment)
     return PenPath(tuple(all_points), tuple(pressures), style.speed,
                    artwork=glyphs, reveal_width=nib_width)
