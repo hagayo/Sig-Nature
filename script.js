@@ -57,6 +57,10 @@ const translations = {
   }
 };
 let language = "he";
+try {
+  if (typeof localStorage !== "undefined"
+      && localStorage.getItem("sig-nature-language") === "en") language = "en";
+} catch (_) { /* preferences are optional */ }
 let statusKey = null;
 let statusDetails = "";
 const mode = document.body?.dataset?.page || "generate";
@@ -88,6 +92,10 @@ function renderLanguage() {
 }
 toggle.addEventListener("click", () => {
   language = language === "he" ? "en" : "he";
+  try {
+    if (typeof localStorage !== "undefined")
+      localStorage.setItem("sig-nature-language", language);
+  } catch (_) { /* preferences are optional */ }
   renderLanguage();
 });
 function setStatus(key, details = "", error = false) {
@@ -102,9 +110,9 @@ function showMetrics(container, data) {
     const title = document.createElement("dt");
     title.textContent = translate(key);
     const detail = document.createElement("dd");
-    detail.textContent = typeof value === "number"
-      ? (Math.round(value * 100) + (Math.abs(value) <= 1 ? "%" : ""))
-      : String(value);
+    detail.textContent = typeof value !== "number" ? String(value)
+      : ["width", "height", "spacing"].includes(key) ? value.toFixed(2) + "×"
+      : Math.round(value * 100) + "%";
     container.append(title, detail);
   }
 }
