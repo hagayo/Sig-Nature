@@ -4,28 +4,34 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Sig-Nature</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/style.css">
 </head>
-<body>
-  <main>
-    <header>
-      <h1>Sig-Nature</h1>
-      <button id="language-toggle" type="button" aria-label="Switch to English">English</button>
+<body data-page="generate">
+  <main class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="/">Sig-Nature</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="/" data-i18n="navGenerate" aria-current="page">יצירת חתימה</a>
+        <a href="/analyze-photo.html" data-i18n="navPhoto">ניתוח תמונה</a>
+        <a href="/analyze-signature.html" data-i18n="navSignature">ניתוח חתימה</a>
+      </nav>
+      <button class="button button-secondary" id="language-toggle" type="button" aria-label="Switch to English">English</button>
     </header>
-    <form id="signature-form">
-      <label><span data-i18n="fullName">שם מלא</span><input id="full-name" required autocomplete="name" placeholder="שם מלא"></label>
-      <label><span data-i18n="portrait">תמונת פנים</span><input id="portrait" type="file" accept="image/png,image/jpeg,image/webp" required></label>
-      <label><span data-i18n="apiKey">מפתח API</span><input id="api-key" type="password" required autocomplete="off"></label>
-      <button id="generate" type="submit" data-i18n="generate">הפעל</button>
+    <h1 data-i18n="titleGenerate">חתימה בהשראת הפנים שלך</h1>
+    <form class="form-grid" id="signature-form">
+      <label class="field"><span data-i18n="fullName">שם מלא</span><input id="full-name" name="full_name" required maxlength="64" autocomplete="name" placeholder="שם מלא"></label>
+      <label class="field"><span data-i18n="portrait">תמונת פנים</span><input id="portrait" name="portrait" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+      <label class="field"><span data-i18n="apiKey">מפתח API</span><input id="api-key" name="api_key" type="password" autocomplete="off" required></label>
+      <button class="button" id="generate" type="submit" data-i18n="generate">יצירת חתימה</button>
     </form>
-    <p id="status" role="status" aria-live="polite"></p>
-    <section id="results" hidden>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+    <section class="result-panel" id="results" hidden>
       <img id="signature-preview" alt="חתימה על רקע שקוף">
-      <a id="download-png" download="signature.png" data-i18n="downloadPng">הורדת חתימה PNG</a>
+      <div class="actions"><a class="button button-secondary" id="download-png" download="signature.png" data-i18n="downloadPng">הורדת חתימה PNG</a></div>
       <video id="animation-preview" controls playsinline></video>
-      <a id="download-video" download="signature.mp4" data-i18n="downloadVideo">הורדת סרטון</a>
+      <div class="actions"><a class="button button-secondary" id="download-video" download="signature.mp4" data-i18n="downloadVideo">הורדת סרטון MP4</a></div>
     </section>
   </main>
-  <script src="script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>
