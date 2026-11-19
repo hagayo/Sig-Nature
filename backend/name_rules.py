@@ -84,22 +84,6 @@ def prepare_name(full_name: str) -> PreparedName:
     count = sum(len(w) for w in words)
     if count > MAX_LETTERS or len(words) > MAX_WORDS:
         raise ValueError("Name is too long for a legible signature")
-    runs: list[NameRun] = []
-    for wi, word in enumerate(words):
-        group = ""
-        current = ""
-        for ch in word:
-            script = _script(ch)
-            if group and script != current:
-                runs.append(NameRun(group, current, gap_before=not runs or False))
-                group = ""
-            if not group:
-                current = script
-            group += ch
-        if group:
-            runs.append(NameRun(group, current, gap_before=wi > 0))
-    # Fix word boundaries for mixed-script words: a word break is represented
-    # only by the first run of each new word, not by all its component runs.
     segments: list[NameRun] = []
     for word_index, word in enumerate(words):
         parts: list[tuple[str,str]] = []
