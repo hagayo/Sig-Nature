@@ -28,6 +28,9 @@ const translations = {
     flourish:"סלסול סיום",rise:"שיפוע כתיבה",spacing:"ריווח",
     description:"תיאור",signatureImpression:"רושם אמנותי",
     line_pressure:"לחץ הקו",rhythm:"קצב",connections:"חיבורים",
+    invalidImage:"יש לבחור תמונה מסוג JPEG, PNG או WebP",
+    imageTooLarge:"גודל התמונה המקסימלי הוא 8MB",
+    missingKey:"יש להזין מפתח API",
     legibility:"קריאות",letter_shapes:"צורות האותיות",
     baseline:"כיוון שורת הכתיבה",stroke_variation:"שינויי עובי"
   },
@@ -54,6 +57,9 @@ const translations = {
     flourish:"Final flourish",rise:"Writing rise",spacing:"Spacing",
     description:"Description",signatureImpression:"Creative impression",
     line_pressure:"Line pressure",rhythm:"Rhythm",connections:"Connections",
+    invalidImage:"Choose a JPEG, PNG or WebP image",
+    imageTooLarge:"Maximum image size is 8 MB",
+    missingKey:"Enter an API key",
     legibility:"Legibility",letter_shapes:"Letter shapes",
     baseline:"Writing baseline",stroke_variation:"Stroke variation"
   }
@@ -151,24 +157,48 @@ function showGenerated(data) {
 }
 if (form) form.addEventListener("submit", async event => {
   event.preventDefault();
+  if (form.dataset.busy === "true") return;
+  const upload = document.querySelector(
+    mode === "generate" ? "#portrait" : "#analysis-image"
+  ).files?.[0];
+  if (!upload || (upload.type && !["image/jpeg","image/png","image/webp"].includes(upload.type))) {
+    setStatus("invalidImage", "", true);
+    return;
+  }
+  if (typeof upload.size === "number" && upload.size > 8 * 1024 * 1024) {
+    setStatus("imageTooLarge", "", true);
+    return;
+  }
+  const keyField = document.querySelector("#api-key");
+  if (!keyField.value.trim()) {
+    setStatus("missingKey", "", true);
+    return;
+  }
   results.hidden = true;
+  latestAnalysis = null;
   const button = document.querySelector(mode === "generate" ? "#generate" : "#analyze");
   const data = new FormData();
   if (mode === "generate") {
     data.set("full_name", document.querySelector("#full-name").value.trim());
-    data.set("portrait", document.querySelector("#portrait").files[0]);
+    data.set("portrait", upload);
   } else {
-    data.set("image", document.querySelector("#analysis-image").files[0]);
+    data.set("image", upload);
     data.set("language", language);
   }
-  data.set("api_key", document.querySelector("#api-key").value);
+  data.set("api_key", keyField.value);
+  keyField.value = "";
   button.disabled = true;
+  form.dataset.busy = "true";
+  form.setAttribute?.("aria-busy", "true");
   setStatus("working");
   try {
     const response = await fetch(API_ENDPOINTS[mode], {method:"POST",body:data});
     if (!response.ok) {
       const failure = await response.json().catch(() => ({}));
-      setStatus("serverError", " (" + response.status + "): " + (failure.detail || ""), true);
+      const message = Array.isArray(failure.detail)
+        ? failure.detail.map(item => item.msg || String(item)).join("; ")
+        : (failure.detail || "");
+      setStatus("serverError", " (" + response.status + "): " + message, true);
       return;
     }
     const payload = await response.json();
@@ -188,7 +218,8 @@ if (form) form.addEventListener("submit", async event => {
     setStatus("offline", "", true);
   } finally {
     button.disabled = false;
-    document.querySelector("#api-key").value = "";
+    form.dataset.busy = "false";
+    form.setAttribute?.("aria-busy", "false");
   }
 });
 renderLanguage();
