@@ -5,7 +5,7 @@ import subprocess
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 
 from backend.portrait_analysis import MAX_IMAGE_BYTES, analyze_portrait, validate_portrait
 from backend.service import GeneratedAssets, generate_signature
