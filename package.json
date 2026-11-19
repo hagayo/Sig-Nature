@@ -1,0 +1,19 @@
+{
+  "name": "sig-nature",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/frontend.test.mjs tests/frontend-pages.test.mjs",
+    "test:browser": "playwright test",
+    "lint:js": "eslint script.js",
+    "lint:css": "stylelint style.css"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.50.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "stylelint": "^16.0.0",
+    "stylelint-config-standard": "^36.0.0"
+  }
+}
