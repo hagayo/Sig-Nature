@@ -84,9 +84,9 @@ class MotionTimeline:
         complexity = sum(turn_field[i]*(length[i+1]-length[i])
                          for i in range(n-1))/self.length
         # Human-scale writing: elaborate names take longer than a short mark.
-        self.writing_seconds = max(5.1, min(10.6,
-            4.55 + .085*sqrt(self.length) + 2.1*complexity
-            - .85*(path.tempo-.5)))
+        self.writing_seconds = max(5.1, min(9.0,
+            4.25 + .045*sqrt(self.length) + 1.2*complexity
+            - .55*(path.tempo-.5)))
         raw = [0.]
         for i in range(1,n):
             segment = length[i]-length[i-1]
