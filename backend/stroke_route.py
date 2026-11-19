@@ -34,7 +34,7 @@ def _edge(a: Point, b: Point) -> tuple[Point, Point]:
     return (a,b) if a < b else (b,a)
 
 
-def route_skeleton(skeleton: set[Point]) -> list[Point]:
+def route_skeleton(skeleton: set[Point], *, rtl: bool = True) -> list[Point]:
     if not skeleton:
         raise ValueError("Cannot route an empty handwriting skeleton")
     neighbors = ((1,0),(-1,0),(0,1),(0,-1),
@@ -70,7 +70,8 @@ def route_skeleton(skeleton: set[Point]) -> list[Point]:
     if not edges:
         return [next(iter(skeleton))]
     endpoints = [p for p in graph if len(graph[p])==1]
-    start = max(endpoints or graph, key=lambda p: (p[0],-p[1]))
+    start = (max(endpoints or graph, key=lambda p: (p[0],-p[1]))
+             if rtl else min(endpoints or graph, key=lambda p: (p[0],p[1])))
     result = [start]
     current = start
     remaining = set(edges)
@@ -81,7 +82,7 @@ def route_skeleton(skeleton: set[Point]) -> list[Point]:
             def score(point):
                 dx,dy = point[0]-current[0],point[1]-current[1]
                 norm = hypot(dx,dy)
-                horizontal = -dx/norm
+                horizontal = (-dx if rtl else dx)/norm
                 if previous is None:
                     return (.25*horizontal,-point[1],-point[0])
                 old = (current[0]-previous[0],current[1]-previous[1])
