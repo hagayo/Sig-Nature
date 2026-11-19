@@ -58,7 +58,7 @@ def test_name_and_portrait_generate_real_mp4_and_transparent_png(
         assert "height=720" in meta
         duration = float(next(line.split("=")[1] for line in meta.splitlines()
                               if line.startswith("duration=")))
-        assert 4.0 <= duration <= 7.5
+        assert 6.6 <= duration <= 10.8
         frame_count = int(next(line.split("=")[1] for line in meta.splitlines()
                                if line.startswith("nb_frames=")))
         assert frame_count == round(duration * 60)
