@@ -1,38 +1,50 @@
-"""Encode a continuous-pen signature animation as H.264 MP4.
+"""Encode a curvature-timed signature as crisp browser-compatible H.264 MP4.
 
-Frame generation is separate: all 36 frames must depict successive prefixes
-of one continuous pen path, never independent image generations.
+Duration is based on path complexity and writer tempo, not a fixed 1.5 seconds.
+Each frame is a monotonic pen-path prefix, with 60 FPS and a clean final hold.
 """
-
 from pathlib import Path
 import subprocess
 
-FRAME_RATE = 24
-DURATION_SECONDS = 1.5
-FRAME_COUNT = int(FRAME_RATE * DURATION_SECONDS)
+from backend.motion import FRAME_RATE
 
 
-def encode_animation(frames_dir: Path, output: Path) -> Path:
-    """Encode exactly 36 numbered PNG frames as a browser-compatible MP4."""
+def encode_animation(
+    frames_dir: Path,
+    output: Path,
+    *,
+    frame_count: int | None = None,
+    frame_rate: int = FRAME_RATE,
+) -> Path:
+    """Encode only an exact contiguous set of PNG frames, without rescaling."""
     if output.suffix.lower() != ".mp4":
         raise ValueError(f"Expected .mp4 output, got {output.name}")
     frames = sorted(frames_dir.glob("frame_*.png"))
-    expected = [frames_dir / f"frame_{i:03d}.png" for i in range(FRAME_COUNT)]
+    if frame_count is None:
+        frame_count = len(frames)
+    if frame_count < 2 or frame_count > 600:
+        raise ValueError("Video frame count must be between 2 and 600")
+    if frame_rate < 24 or frame_rate > 120:
+        raise ValueError("Unsupported video frame rate")
+    expected = [frames_dir / f"frame_{i:03d}.png" for i in range(frame_count)]
     if frames != expected:
         missing = [path.name for path in expected if not path.is_file()]
         extra = [path.name for path in frames if path not in expected]
         raise ValueError(
-            f"Expected {FRAME_COUNT} numbered frames in {frames_dir}; "
+            f"Expected {frame_count} numbered frames in {frames_dir}; "
             f"missing={missing}; unexpected={extra}"
         )
     output.parent.mkdir(parents=True, exist_ok=True)
     command = [
         "ffmpeg", "-y", "-loglevel", "error",
-        "-framerate", str(FRAME_RATE),
+        "-framerate", str(frame_rate),
         "-i", str(frames_dir / "frame_%03d.png"),
-        "-frames:v", str(FRAME_COUNT),
-        "-vf", "scale=720:720:flags=lanczos,format=yuv420p",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-frames:v", str(frame_count),
+        "-c:v", "libx264",
+        "-preset", "slow",
+        "-crf", "17",
+        "-tune", "animation",
+        "-pix_fmt", "yuv420p",
         "-movflags", "+faststart",
         str(output),
     ]
