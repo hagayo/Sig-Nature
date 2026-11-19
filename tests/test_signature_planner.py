@@ -39,3 +39,15 @@ def test_progression_has_no_pen_lift() -> None:
         prefix = path.prefix(step / 36)
         assert prefix[0] == path.points[0]
         assert prefix[-1] in path.points or len(prefix) > 1
+
+def test_same_name_different_portraits_change_signature() -> None:
+    smiling = plan_signature("חגי און", portrait=b"portrait-smiling")
+    serious = plan_signature("חגי און", portrait=b"portrait-serious")
+    assert smiling != serious
+
+
+def test_same_name_same_portrait_is_reproducible() -> None:
+    photo = b"same-image-content"
+    assert plan_signature("חגי און", portrait=photo) == plan_signature(
+        "חגי און", portrait=photo
+    )
