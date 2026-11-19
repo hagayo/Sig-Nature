@@ -81,11 +81,24 @@ def pen_route(skeleton: set[tuple[int,int]]) -> list[tuple[int,int]]:
             for nxt in edges[node]:
                 if nxt not in seen: seen.add(nxt); todo.append(nxt)
         components.append(part)
+    def stroke_ends(nodes: list[tuple[int,int]]) -> list[tuple[int,int]]:
+        # Real handwriting joins at stroke tips, not arbitrary interior pixels.
+        tips = [point for point in nodes if len(edges[point]) <= 1]
+        if tips:
+            return tips
+        # A closed loop has no tips; use a small deterministic set of extrema.
+        return list(set((
+            min(nodes, key=lambda p: (p[0], p[1])),
+            max(nodes, key=lambda p: (p[0], p[1])),
+            min(nodes, key=lambda p: (p[1], p[0])),
+            max(nodes, key=lambda p: (p[1], p[0])),
+        )))
     while len(components)>1:
-        dist,a,b,ia,ib = min(
+        ends=[stroke_ends(part) for part in components]
+        _,a,b,ia,ib = min(
             ((p[0]-q[0])**2+(p[1]-q[1])**2,p,q,i,j)
-            for i,left in enumerate(components)
-            for j,right in enumerate(components) if j>i
+            for i,left in enumerate(ends)
+            for j,right in enumerate(ends) if j>i
             for p in left for q in right
         )
         edges[a].add(b); edges[b].add(a)
