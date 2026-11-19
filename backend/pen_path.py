@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw
 from backend.animation import FRAME_COUNT
 
 Point = tuple[float, float]
-INK = (23, 42, 112)
+INK = (25, 42, 115)
 
 
 @dataclass(frozen=True)
@@ -39,7 +39,7 @@ class PenPath:
         """Exact travelled-distance prefix, with interpolated pressure at the tip."""
         if not isfinite(fraction) or not 0 <= fraction <= 1:
             raise ValueError("Progress must be finite and between 0 and 1")
-        pressure = self.pressures or (0.55,)*len(self.points)
+        pressure = self.pressures or (1.0,)*len(self.points)
         remaining=self.length*fraction
         result=[(self.points[0],pressure[0])]
         for i,(a,b) in enumerate(zip(self.points,self.points[1:])):
@@ -99,6 +99,23 @@ def render_signature(
     return output
 
 
+
+def _paper_indent(trace: tuple[tuple[Point,float],...], size:tuple[int,int])->Image.Image:
+    """Subtle paper highlight and depression shadow at stronger pen pressure."""
+    layer=Image.new("RGBA",size,(0,0,0,0))
+    painter=ImageDraw.Draw(layer)
+    for (a,pa),(b,pb) in zip(trace,trace[1:]):
+        pressure=(pa+pb)*.5
+        if pressure < .60:
+            continue
+        strength=round((pressure-.60)*110)
+        painter.line(((a[0]+1,a[1]+1),(b[0]+1,b[1]+1)),
+                     fill=(110,111,118,strength),width=7)
+        painter.line(((a[0]-1,a[1]-1),(b[0]-1,b[1]-1)),
+                     fill=(255,255,255,strength),width=2)
+    return layer
+
+
 def render_frames(
     path:PenPath,frames_dir:Path,size:tuple[int,int]=(720,720)
 )->None:
@@ -108,6 +125,7 @@ def render_frames(
     for index in range(FRAME_COUNT):
         trace=path.trace((index+1)/FRAME_COUNT)
         paper=Image.new("RGBA",size,"white")
+        paper.alpha_composite(_paper_indent(trace,size))
         paper.alpha_composite(_ink_layer(trace,size))
         tip,_=trace[-1]
         x,y=tip
