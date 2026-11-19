@@ -84,15 +84,18 @@ def test_all_frames_reveal_only_prefixes_of_one_stroke(tmp_path: Path) -> None:
     path = PenPath(((90, 360), (610, 360)), artwork=art, reveal_width=12)
     folder = tmp_path / "frames"
     render_frames(path, folder)
-    # The brush hides its own tip in a small area, so inspect a fixed band
-    # well away from the pen illustration for monotonic ink accumulation.
+    # Inspect transparent ink, not the pen barrel that may cover the live tip.
+    from backend.pen_path import _ink_layer
     seen = set()
     for step in range(FRAME_COUNT):
-        with Image.open(folder / f"frame_{step:03d}.png") as frame:
-            visible = {
-                x for x in range(100, 550, 10)
-                if frame.getpixel((x, 360))[:3] == (25, 42, 115)
-            }
+        progress = ((step + 1) / FRAME_COUNT) ** (1.3 - .6 * path.tempo)
+        ink = _ink_layer(
+            path.trace(progress), (720, 720), path.artwork, path.reveal_width,
+        )
+        visible = {
+            x for x in range(100, 550, 10)
+            if ink.getpixel((x, 360))[3] > 0
+        }
         assert seen.issubset(visible)
         seen = visible
     assert len(seen) >= 40
