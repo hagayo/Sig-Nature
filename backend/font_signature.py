@@ -176,7 +176,8 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
         skeleton=thin(filled)
         original_route=pen_route(skeleton)
         route=[original_route[0]]
-        nib=ImageDraw.Draw(image)
+        bridge=Image.new('L',image.size,0)
+        nib=ImageDraw.Draw(bridge)
         for a,b in zip(original_route,original_route[1:]):
             distance=hypot(b[0]-a[0],b[1]-a[1])
             if distance>2.5:
@@ -186,6 +187,7 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
             for j in range(1,steps+1):
                 t=j/steps
                 route.append((a[0]*(1-t)+b[0]*t,a[1]*(1-t)+b[1]*t))
+        image=ImageChops.lighter(image,bridge)
         part=Image.new('L',size,0);part.paste(image,(left,top))
         glyphs=ImageChops.lighter(glyphs,part)
         points=[(x+left,y+top) for x,y in route]
@@ -196,7 +198,9 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
                 t=j/24
                 join.append((a[0]+(b[0]-a[0])*t,
                              a[1]+(b[1]-a[1])*t+3*sin(t*pi)))
-            ImageDraw.Draw(glyphs).line([a]+join,fill=130,width=2)
+            connector=Image.new('L',size,0)
+            ImageDraw.Draw(connector).line([a]+join,fill=130,width=2)
+            glyphs=ImageChops.lighter(glyphs,connector)
             all_points.extend(join);pressures.extend([.18]*len(join))
         all_points.extend(points);pressures.extend([style.pressure]*len(points))
         cursor-=font.getlength(char)*style.spacing*style.width
@@ -209,6 +213,8 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
                         start[1]+font_size*.12*style.flourish*sin(pi*i/36)
                         -font_size*.10*style.rise*i/36)
                        for i in range(1,37)]
-            ImageDraw.Draw(glyphs).line([start]+extension,fill=130,width=2)
+            connector=Image.new('L',size,0)
+            ImageDraw.Draw(connector).line([start]+extension,fill=130,width=2)
+            glyphs=ImageChops.lighter(glyphs,connector)
             all_points.extend(extension);pressures.extend([.23]*len(extension))
     return PenPath(tuple(all_points),tuple(pressures),style.speed,artwork=glyphs)
