@@ -1,9 +1,9 @@
 // Backend contract: POST multipart/form-data to /api/generate.
-// Expected JSON: { signature_png_url, animation_webm_url }.
+// Expected JSON: { signature_png_url, animation_mp4_url }.
 const API_ENDPOINT = "/api/generate";
 const translations = {
-  he: {fullName:"שם מלא",portrait:"תמונת פנים",apiKey:"מפתח API",generate:"הפעל",downloadPng:"הורדת חתימה PNG",downloadVideo:"הורדת סרטון",working:"יוצר חתימה...",ready:"הקבצים מוכנים",serverError:"שגיאה מהשרת",missing:"השרת לא החזיר את שני הקבצים",offline:"לא ניתן להתחבר לשרת. ממשק זה ממתין לחיבור Python.",alt:"חתימה על רקע שקוף",placeholder:"שם מלא",toggle:"English",toggleLabel:"Switch to English"},
-  en: {fullName:"Full name",portrait:"Face photo",apiKey:"API key",generate:"Generate",downloadPng:"Download signature PNG",downloadVideo:"Download video",working:"Generating signature...",ready:"Files are ready",serverError:"Server error",missing:"The server did not return both files",offline:"Cannot connect to the server. This interface is awaiting Python integration.",alt:"Signature on transparent background",placeholder:"Your full name",toggle:"עברית",toggleLabel:"מעבר לעברית"}
+  he: {fullName:"שם מלא",portrait:"תמונת פנים",apiKey:"מפתח API",generate:"הפעל",downloadPng:"הורדת חתימה PNG",downloadVideo:"הורדת סרטון",working:"יוצר חתימה...",ready:"הקבצים מוכנים",serverError:"שגיאה מהשרת",missing:"השרת לא החזיר את שני הקבצים",offline:"לא ניתן להתחבר לשרת.",alt:"חתימה על רקע שקוף",placeholder:"שם מלא",toggle:"English",toggleLabel:"Switch to English"},
+  en: {fullName:"Full name",portrait:"Face photo",apiKey:"API key",generate:"Generate",downloadPng:"Download signature PNG",downloadVideo:"Download video",working:"Generating signature...",ready:"Files are ready",serverError:"Server error",missing:"The server did not return both files",offline:"Cannot connect to the server.",alt:"Signature on transparent background",placeholder:"Your full name",toggle:"עברית",toggleLabel:"מעבר לעברית"}
 };
 let language = "he";
 let statusKey = null;
@@ -37,13 +37,14 @@ form.addEventListener("submit", async event => {
   setStatus("working");
   try {
     const response = await fetch(API_ENDPOINT, {method:"POST",body:data});
-    if (!response.ok) { setStatus("serverError", " (" + response.status + ")"); return; }
+    if (!response.ok) { const issue = await response.json().catch(() => ({})); setStatus("serverError", " (" + response.status + "): " + (issue.detail || "")); return; }
     const payload = await response.json();
-    if (!payload.signature_png_url || !payload.animation_webm_url) { setStatus("missing"); return; }
+    if (!payload.signature_png_url || !payload.animation_mp4_url) { setStatus("missing"); return; }
     document.querySelector("#signature-preview").src = payload.signature_png_url;
     document.querySelector("#download-png").href = payload.signature_png_url;
-    document.querySelector("#animation-preview").src = payload.animation_webm_url;
-    document.querySelector("#download-video").href = payload.animation_webm_url;
+    document.querySelector("#animation-preview").src = payload.animation_mp4_url;
+    document.querySelector("#download-video").href = payload.animation_mp4_url;
+    document.querySelector("#api-key").value = "";
     results.hidden = false;
     setStatus("ready");
   } catch (error) {
