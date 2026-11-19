@@ -7,10 +7,14 @@ import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
-from backend.portrait_analysis import MAX_IMAGE_BYTES, analyze_portrait, validate_portrait
+from backend.portrait_analysis import (
+    MAX_IMAGE_BYTES, NoVisibleFaceError, analyze_portrait_detailed,
+    validate_portrait,
+)
 from backend.service import GeneratedAssets, generate_signature
-from backend.signature_analysis import analyze_signature
+from backend.signature_analysis import NoVisibleSignatureError, analyze_signature
 from backend.style_mapping import style_from_portrait
+from backend.vision_client import VisionResponseError
 
 app = FastAPI(title="Sig-Nature")
 
@@ -114,16 +118,21 @@ async def analyze_photo_route(
         raise HTTPException(422, "Invalid language or missing API key")
     photo = await _get_image(image)
     try:
-        traits = await analyze_portrait(photo, api_key)
+        reading = await analyze_portrait_detailed(photo, api_key, language)
+    except NoVisibleFaceError as exc:
+        raise HTTPException(422, str(exc)) from exc
     except httpx.HTTPStatusError as exc:
         raise _provider_problem(exc) from exc
     except httpx.RequestError as exc:
         raise HTTPException(503, "OpenAI is temporarily unreachable") from exc
-    except ValueError as exc:
+    except (VisionResponseError, ValueError) as exc:
         raise HTTPException(502, "Invalid portrait analysis output") from exc
     return {
-        "traits": asdict(traits),
-        "writing_style": asdict(style_from_portrait(traits)),
+        "summary": reading.summary,
+        "cues": list(reading.cues),
+        "vibe": reading.vibe,
+        "traits": asdict(reading.style),
+        "writing_style": asdict(style_from_portrait(reading.style)),
     }
 
 
@@ -138,11 +147,13 @@ async def analyze_signature_route(
     signature = await _get_image(image)
     try:
         report = await analyze_signature(signature, api_key, language)
+    except NoVisibleSignatureError as exc:
+        raise HTTPException(422, str(exc)) from exc
     except httpx.HTTPStatusError as exc:
         raise _provider_problem(exc) from exc
     except httpx.RequestError as exc:
         raise HTTPException(503, "OpenAI is temporarily unreachable") from exc
-    except ValueError as exc:
+    except (VisionResponseError, ValueError) as exc:
         raise HTTPException(502, "Invalid signature analysis output") from exc
     return {"analysis": report.to_payload()}
 
