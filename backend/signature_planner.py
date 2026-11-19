@@ -10,36 +10,11 @@ import unicodedata
 from backend.pen_path import PenPath, Point
 from backend.style_mapping import WritingStyle
 
-GLYPHS: dict[str, tuple[Point, ...]] = {
-    "א": ((1,.2),(.55,.65),(.12,.1),(.48,.55),(.75,.12),(.1,.8)),
-    "ב": ((.95,.18),(.35,.16),(.18,.32),(.23,.7),(.85,.72),(.1,.75)),
-    "ג": ((.95,.15),(.5,.2),(.45,.5),(.12,.85),(.45,.5),(.7,.78)),
-    "ד": ((.95,.22),(.1,.2),(.3,.22),(.3,.85)),
-    "ה": ((.95,.22),(.2,.2),(.2,.65),(.32,.65),(.5,.22),(.72,.65)),
-    "ו": ((.8,.2),(.7,.35),(.65,.8)),
-    "ז": ((.95,.2),(.4,.2),(.5,.3),(.5,.8)),
-    "ח": ((.95,.8),(.9,.2),(.2,.2),(.15,.8)),
-    "ט": ((.95,.2),(.85,.7),(.45,.82),(.15,.65),(.2,.2),(.4,.15)),
-    "י": ((.8,.2),(.65,.42),(.55,.3)),
-    "כ": ((.95,.2),(.35,.18),(.15,.38),(.3,.72),(.9,.73)),
-    "ך": ((.95,.2),(.3,.18),(.2,.4),(.4,1.2)),
-    "ל": ((.95,.35),(.65,.15),(.5,-.4),(.35,.2),(.2,.8)),
-    "מ": ((.95,.75),(.8,.2),(.4,.2),(.2,.75),(.75,.72),(.3,.35),(.1,.7)),
-    "ם": ((.95,.2),(.2,.2),(.2,.75),(.9,.75),(.95,.2)),
-    "נ": ((.85,.2),(.7,.65),(.45,.75),(.15,.72)),
-    "ן": ((.8,.2),(.6,.55),(.5,1.2)),
-    "ס": ((.95,.2),(.25,.18),(.15,.5),(.35,.8),(.8,.75),(.95,.2)),
-    "ע": ((.95,.2),(.7,.75),(.4,.72),(.2,.2),(.4,.72),(.12,.78)),
-    "פ": ((.95,.2),(.3,.2),(.15,.5),(.35,.75),(.85,.75),(.7,.45)),
-    "ף": ((.95,.2),(.3,.2),(.15,.5),(.35,.75),(.8,.75),(.5,1.2)),
-    "צ": ((.95,.2),(.7,.65),(.2,.8),(.55,.55),(.3,.2)),
-    "ץ": ((.95,.2),(.7,.65),(.3,1.2),(.65,.6),(.3,.2)),
-    "ק": ((.95,.2),(.2,.2),(.2,.65),(.5,.7),(.6,.35),(.65,1.15)),
-    "ר": ((.95,.2),(.35,.2),(.3,.45),(.35,.8)),
-    "ש": ((.95,.2),(.85,.7),(.55,.75),(.5,.2),(.45,.75),(.2,.7),(.15,.2)),
-    "ת": ((.95,.2),(.15,.2),(.25,.75),(.55,.75),(.8,.25),(.9,.75)),
-}
+# Hebrew letters use the single handwriting source in backend.font_signature.
+# The compatibility alphabet is retained for old imports and validation tests.
+from backend.font_signature import HEBREW
 
+GLYPHS = frozenset(HEBREW)
 
 # Simplified single-path cursive Latin glyphs. Hebrew remains the primary alphabet.
 LATIN: dict[str, tuple[Point, ...]] = {
@@ -145,7 +120,7 @@ def plan_signature(
     if style is None:
         style = WritingStyle()
     if hebrew:
-        # Font masks and skeletonized trajectories replace the old ad-hoc glyphs.
+        # Every Hebrew glyph is derived from the one open handwriting font.
         from backend.font_signature import create_hebrew_signature
         return create_hebrew_signature(name, style, portrait, size)
     fingerprint = sha256(name.encode("utf-8") + b"\x00" + portrait).digest()
