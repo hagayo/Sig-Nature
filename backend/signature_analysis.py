@@ -1,7 +1,7 @@
 """Playful interpretation of visible signature strokes using an OpenAI vision model."""
 from __future__ import annotations
 import base64
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import json
 
 import httpx
