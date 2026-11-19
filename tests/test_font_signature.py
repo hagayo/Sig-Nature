@@ -1,4 +1,4 @@
-"""Legible Hebrew font + continuous writing trajectory regression tests."""
+"""Gveret Levin handwriting, continuous pen contact and matching PNG tests."""
 from pathlib import Path
 
 import pytest
@@ -36,7 +36,7 @@ def test_font_ink_visible_in_rendered_png(tmp_path: Path) -> None:
         assert image.getpixel((0,0))[3] == 0
         coverage = image.getchannel("A")
         assert coverage.getbbox()
-        assert ImageChops.difference(coverage, path.artwork).getbbox() is not None
+        assert ImageChops.difference(coverage, path.artwork).getbbox() is None
 
 
 def test_expression_changes_font_geometry_and_ink_pressure() -> None:
