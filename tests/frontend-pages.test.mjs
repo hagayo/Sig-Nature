@@ -90,3 +90,37 @@ test("signature analysis displays descriptive interpretation instead of numeric 
   assert.equal(screen.el("#analysis-details").children.length,4);
   assert.equal(screen.el("#api-key").value,"");
 });
+
+
+test("client rejects 9MB uploads before spending API credits", async()=>{
+  const screen=fixture("photo",{traits:{},writing_style:{}});
+  screen.el("#analysis-image").files=[{name:"oversize.png",size:9*1024*1024,type:"image/png"}];
+  screen.el("#api-key").value="local-key";
+  await screen.el("#photo-analysis-form").handlers.submit({preventDefault(){}});
+  assert.equal(screen.request(),undefined);
+  assert.equal(screen.el("#status").dataset.error,"true");
+  assert.equal(screen.el("#api-key").value,"local-key");
+});
+
+test("client rejects non-image uploads without contacting the server",async()=>{
+  const screen=fixture("signature",{analysis:{}});
+  screen.el("#analysis-image").files=[{name:"notes.pdf",size:32,type:"application/pdf"}];
+  screen.el("#api-key").value="local-key";
+  await screen.el("#signature-analysis-form").handlers.submit({preventDefault(){}});
+  assert.equal(screen.request(),undefined);
+  assert.equal(screen.el("#status").dataset.error,"true");
+});
+
+test("client never saves the key after a successful request",async()=>{
+  const screen=fixture("generate",{
+    signature_png_url:"/signature.png",animation_mp4_url:"/signature.mp4"
+  });
+  screen.el("#portrait").files=[{name:"photo.png",size:512,type:"image/png"}];
+  screen.el("#full-name").value="חגי און";
+  screen.el("#api-key").value="sensitive-key";
+  await screen.el("#signature-form").handlers.submit({preventDefault(){}});
+  assert.equal(screen.el("#api-key").value,"");
+  assert.equal(screen.el("#results").hidden,false);
+  assert.equal(screen.el("#signature-preview").src,"/signature.png");
+  assert.equal(screen.el("#animation-preview").src,"/signature.mp4");
+});
