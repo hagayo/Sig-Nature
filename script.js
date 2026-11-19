@@ -108,6 +108,7 @@ try {
 let statusKey = null;
 let statusDetails = "";
 let latestAnalysis = null;
+let inputRevision = 0;
 
 function translate(key) {
   return translations[language][key] || key;
@@ -238,9 +239,11 @@ const imageInput = document.querySelector(
   mode === "generate" ? "#portrait" : "#analysis-image"
 );
 imageInput?.addEventListener("change", () => {
+  inputRevision += 1;
   if (form?.dataset.busy !== "true") resetResults();
 });
 document.querySelector("#full-name")?.addEventListener("input", () => {
+  inputRevision += 1;
   if (form?.dataset.busy !== "true") resetResults();
 });
 
@@ -298,7 +301,9 @@ if (form) form.addEventListener("submit", async event => {
   }
   data.set("api_key", keyField.value.trim());
   keyField.value = "";
+  const submittedRevision = inputRevision;
   button.disabled = true;
+  toggle.disabled = true;
   button.setAttribute("aria-busy", "true");
   form.dataset.busy = "true";
   form.setAttribute("aria-busy", "true");
@@ -307,14 +312,26 @@ if (form) form.addEventListener("submit", async event => {
     const response = await fetch(API_ENDPOINTS[mode], {
       method: "POST", body: data, cache: "no-store"
     });
+    if (inputRevision !== submittedRevision) {
+      resetResults();
+      return;
+    }
     if (!response.ok) {
       const failure = await response.json().catch(() => ({}));
+      if (inputRevision !== submittedRevision) {
+        resetResults();
+        return;
+      }
       const detail = typeof failure.detail === "string" ? failure.detail : "";
       setStatus(responseErrorKey(response.status, detail),
         " (" + response.status + ")", true);
       return;
     }
     const payload = await response.json();
+    if (inputRevision !== submittedRevision) {
+      resetResults();
+      return;
+    }
     if (!payload || typeof payload !== "object") {
       setStatus("missing", "", true);
       return;
@@ -337,9 +354,11 @@ if (form) form.addEventListener("submit", async event => {
     results.hidden = false;
     setStatus("ready");
   } catch (_) {
-    setStatus("offline", "", true);
+    if (inputRevision !== submittedRevision) resetResults();
+    else setStatus("offline", "", true);
   } finally {
     button.disabled = false;
+    toggle.disabled = false;
     button.setAttribute("aria-busy", "false");
     form.dataset.busy = "false";
     form.setAttribute("aria-busy", "false");
