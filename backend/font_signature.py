@@ -267,4 +267,5 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
     # Preserve image bounds for tall ascenders and the optional underline.
     if any(x<1 or y<1 or x>=size[0]-1 or y>=size[1]-1 for x,y in all_points):
         raise ValueError('Signature flourishes do not fit the canvas')
-    return PenPath(tuple(all_points),tuple(pressures),style.speed,artwork=glyphs)
+    return PenPath(tuple(all_points), tuple(pressures), style.speed,
+                   artwork=glyphs, reveal_width=max(6,min(16,round(font_size*.095))))
