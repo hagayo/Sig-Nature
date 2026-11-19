@@ -1,5 +1,8 @@
 """Production generation: portrait analysis -> handwriting -> rendered assets."""
 import asyncio
+from functools import lru_cache
+import shutil
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -11,6 +14,20 @@ from backend.signature_planner import validate_name
 from backend.style_mapping import style_from_portrait
 
 ASSET_DIR = Path(__file__).resolve().parent / "generated"
+
+
+@lru_cache(maxsize=1)
+def ensure_video_encoder() -> None:
+    """Validate H.264 output capability before using paid vision credits."""
+    executable = shutil.which("ffmpeg")
+    if not executable:
+        raise FileNotFoundError("FFmpeg is not installed")
+    result = subprocess.run(
+        [executable, "-hide_banner", "-encoders"],
+        capture_output=True, text=True, check=True, timeout=12,
+    )
+    if "libx264" not in result.stdout:
+        raise RuntimeError("FFmpeg does not include the libx264 encoder")
 
 
 @dataclass(frozen=True)
@@ -27,8 +44,9 @@ async def generate_signature(
     """Generate photo-specific ink and video; do not store photo or API key."""
     validate_portrait(portrait)
     _, is_hebrew = validate_name(full_name)
-    # Ensure the handwriting font is usable BEFORE charging the user's API key.
-    # Font downloads and font parsing run off the async event loop.
+    # Preflight local dependencies BEFORE using the user's paid OpenAI credits.
+    # Both checks run outside the asynchronous server event loop.
+    await asyncio.to_thread(ensure_video_encoder)
     if is_hebrew:
         from backend.font_signature import get_font
         await asyncio.to_thread(get_font, 64)
