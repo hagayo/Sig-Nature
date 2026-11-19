@@ -56,7 +56,13 @@ test("all pages use one CSS and JS shell with minimal duplicated structure",()=>
 });
 
 test("portrait analysis uploads photo and shows model scores and stroke effects",async()=>{
-  const screen=fixture("photo",{traits:{joy:.9,tension:.1},writing_style:{pressure:.65,roundness:.8}});
+  const screen=fixture("photo",{
+    summary:"חיוך גלוי ומבט ישיר",
+    cues:["זוויות פה מורמות","ראש מוטה קלות"],
+    vibe:"דמות נעימה ושובבה",
+    traits:{joy:.9,tension:.1},
+    writing_style:{pressure:.65,roundness:.8}
+  });
   screen.el("#api-key").value="user-key";
   await screen.el("#photo-analysis-form").handlers.submit({preventDefault(){}});
   assert.equal(screen.request().url,"/api/analyze-photo");
@@ -64,6 +70,8 @@ test("portrait analysis uploads photo and shows model scores and stroke effects"
   assert.equal(screen.el("#results").hidden,false);
   assert.equal(screen.el("#analysis-details").children.length,4);
   assert.equal(screen.el("#writing-details").children.length,4);
+  assert.match(screen.el("#analysis-description").textContent,/זוויות פה מורמות/);
+  assert.match(screen.el("#analysis-description").textContent,/דמות נעימה ושובבה/);
   assert.equal(screen.el("#api-key").value,"");
 });
 
