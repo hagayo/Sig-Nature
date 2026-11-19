@@ -31,7 +31,7 @@ function setup() {
       set(key, value) { this.values.set(key, value); }
     },
     fetch: async () => ({ ok: true, json: async () => ({
-      signature_png_url: "/signature.png", animation_webm_url: "/signature.webm"
+      signature_png_url: "/signature.png", animation_mp4_url: "/signature.mp4"
     }) })
   };
   vm.runInNewContext(source, context);
@@ -57,7 +57,7 @@ test("submit sends user values and renders both results", async () => {
   context.fetch = async (url, options) => {
     sent = { url, options };
     return { ok: true, json: async () => ({
-      signature_png_url: "/signature.png", animation_webm_url: "/signature.webm"
+      signature_png_url: "/signature.png", animation_mp4_url: "/signature.mp4"
     }) };
   };
   element("#full-name").value = "Test User";
@@ -68,7 +68,7 @@ test("submit sends user values and renders both results", async () => {
   assert.equal(sent.options.body.values.get("api_key"), "temporary-test-key");
   assert.equal(element("#results").hidden, false);
   assert.equal(element("#download-png").href, "/signature.png");
-  assert.equal(element("#download-video").href, "/signature.webm");
+  assert.equal(element("#download-video").href, "/signature.mp4");
 });
 
 test("English interface translations contain no Hebrew except the Hebrew language switch", () => {
