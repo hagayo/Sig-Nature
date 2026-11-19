@@ -119,3 +119,27 @@ def test_missing_handwriting_font_prevents_paid_api_call(
     )
     assert response.status_code == 503
     assert response.headers["cache-control"] == "no-store"
+
+
+
+def test_missing_macro_materials_prevents_paid_api_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend import cinematic_video
+
+    async def forbid_vision(*args: object) -> None:
+        raise AssertionError("Must not use paid vision when photo assets are missing")
+
+    def no_assets() -> None:
+        raise FileNotFoundError("Photographic materials unavailable")
+
+    monkeypatch.setattr(service, "ensure_video_encoder", lambda: None)
+    monkeypatch.setattr(cinematic_video, "validate_cinematic_materials", no_assets)
+    monkeypatch.setattr(service, "analyze_portrait", forbid_vision)
+    response = client.post(
+        "/api/generate",
+        data={"full_name": "Hagay Onn", "api_key": "dummy-key"},
+        files={"portrait": ("portrait.png", photo_bytes(), "image/png")},
+    )
+    assert response.status_code == 503
+    assert response.headers["cache-control"] == "no-store"
