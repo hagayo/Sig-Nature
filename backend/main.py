@@ -79,6 +79,9 @@ async def _get_image(upload: UploadFile) -> bytes:
     if upload.content_type not in {"image/png", "image/jpeg", "image/webp"}:
         raise HTTPException(415, "Upload JPEG, PNG or WebP")
     data = await upload.read(MAX_IMAGE_BYTES + 1)
+    if len(data) > MAX_IMAGE_BYTES:
+        await upload.close()
+        raise HTTPException(413, "Image exceeds the 8 MB limit")
     try:
         validate_portrait(data)
     except ValueError as exc:
