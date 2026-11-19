@@ -26,7 +26,12 @@ async def generate_signature(
 ) -> GeneratedAssets:
     """Generate photo-specific ink and video; do not store photo or API key."""
     validate_portrait(portrait)
-    validate_name(full_name)  # Reject unsupported names before a paid API call.
+    _, is_hebrew = validate_name(full_name)
+    # Ensure the handwriting font is usable BEFORE charging the user's API key.
+    # Font downloads and font parsing run off the async event loop.
+    if is_hebrew:
+        from backend.font_signature import get_font
+        await asyncio.to_thread(get_font, 64)
     impression = await analyze_portrait(portrait, api_key)
     handwriting = style_from_portrait(impression)
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
