@@ -48,6 +48,11 @@ def _assets() -> tuple[np.ndarray, np.ndarray]:
     return pen_rgba, paper_rgb
 
 
+def validate_cinematic_materials() -> None:
+    """Check required photographic textures before spending OpenAI credits."""
+    _assets()
+
+
 @lru_cache(maxsize=1)
 def _paper_world() -> np.ndarray:
     """Real photographed paper fibres, normalized to avoid tiled lighting bands."""
@@ -105,12 +110,15 @@ class _Ink:
         scale=WORLD_SUPERSAMPLE
         self.scale=scale
         self.size=size
+        if path.artwork is not None and path.artwork.size != size:
+            raise ValueError('Signature artwork must match the 720x720 paper plane')
         self.points=np.asarray(path.points,dtype=np.float64)
         self.pressures=np.asarray(path.pressures or (.6,)*len(path.points),dtype=np.float64)
         lengths=np.hypot(np.diff(self.points[:,0]),np.diff(self.points[:,1]))
         self.distances=np.r_[0,np.cumsum(lengths)]
         self.full_length=self.distances[-1]
         self.index=0
+        self.last_target=0.0
         self.current=self.points[0]
         self.mask=np.zeros((size[1]*scale,size[0]*scale),dtype=np.uint8)
         self.width=max(1,int(path.reveal_width*scale))
@@ -133,8 +141,9 @@ class _Ink:
         """Monotone incremental deposition avoids recomputing the entire route."""
         target=min(self.full_length,max(0.,fraction*self.full_length))
         new_idx=min(len(self.points)-2,max(0,bisect_right(self.distances,target)-1))
-        if target < self.distances[self.index]-1e-7:
+        if target < self.last_target-1e-7:
             raise ValueError('Ink progress must not go backwards')
+        self.last_target=target
         while self.index < new_idx:
             a=self.current
             b=self.points[self.index+1]
@@ -204,8 +213,8 @@ def _pen_layer(background:np.ndarray,nib:tuple[float,float],
     if t>.15:
         # Physical defocus and exit, no graphic crossfade during actual writing.
         rgba[:,:,:3]=cv2.GaussianBlur(rgba[:,:,:3],(0,0),max(0.5,lift*2.2))
-    if t>.52:
-        alpha=np.uint8(alpha*np.clip(1-(t-.52)/.25,0,1))
+    if t>.40:
+        alpha=np.uint8(alpha*np.clip(1-(t-.40)/.32,0,1))
     return _blend(background,rgba[:,:,:3],alpha)
 
 
@@ -223,6 +232,12 @@ class CinematicCamera:
         target=np.array(nib,dtype=np.float64)
         # Shoulder-height camera tracks ink as the wrist progresses right-to-left.
         self.center+=np.clip(target-self.center,-20,20)*.21
+        # Keep the live nib in the camera's safe region after fast flourishes.
+        delta=target-self.center
+        if abs(delta[0])>150:
+            self.center[0]+=np.sign(delta[0])*(abs(delta[0])-150)*.75
+        if abs(delta[1])>140:
+            self.center[1]+=np.sign(delta[1])*(abs(delta[1])-140)*.75
         blend=np.clip(seconds_after/REVEAL_SECONDS,0,1)
         blend=blend*blend*(3-2*blend)
         focus=(1-blend)*self.center+blend*self.final
@@ -235,14 +250,15 @@ def cinematic_frames(path,timeline:MotionTimeline|None=None,
     """Yield actual RGB photographs of the moving nib on an oblique paper plane."""
     if size!=OUTPUT_SIZE:
         raise ValueError('The photographic lens is calibrated for 1280x720')
+    if size != OUTPUT_SIZE:
+        raise ValueError('Expected a 1280x720 cinematic frame')
     motion=timeline or MotionTimeline(path)
     camera=CinematicCamera(path)
     world=_paper_world()
     xx,yy,lighting=_optical_layers()
     ink=_Ink(path,(720,720))
-    full_paper_size=(world.shape[1],world.shape[0])
     last_progress=0.
-    for frame in range(motion.frame_count):
+    for frame in range(ceil((motion.writing_seconds + REVEAL_SECONDS)*FRAME_RATE)):
         seconds=frame/FRAME_RATE
         state=motion.at(seconds)
         progress=max(last_progress,state.progress)
