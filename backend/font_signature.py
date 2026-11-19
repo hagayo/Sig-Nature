@@ -19,31 +19,50 @@ FONT_URL = ('https://raw.githubusercontent.com/AlefAlefAlef/gveret-levin/'
             'master/fonts/ttf/GveretLevin-Regular.ttf')
 
 
-def get_font(size: int, font_path: str | None = None) -> ImageFont.FreeTypeFont:
-    paths = [
-        font_path,
-        os.environ.get('SIG_NATURE_HEBREW_FONT'),
-        'C:/Windows/Fonts/GveretLevin-Regular.ttf',
-        '/usr/local/share/fonts/GveretLevin-Regular.ttf',
-        '/usr/share/fonts/truetype/gveret-levin/GveretLevin-Regular.ttf',
-    ]
-    cached = Path.home()/'.cache'/'sig-nature'/'GveretLevin-Regular.ttf'
-    paths.append(str(cached))
-    font_file = next((p for p in paths if p and Path(p).is_file()), None)
-    if font_file is None:
-        cached.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            with urlopen(FONT_URL, timeout=20) as response:
-                data = response.read(1_000_001)
-            if len(data)>1_000_000 or data[:4] != b'\x00\x01\x00\x00':
-                raise ValueError('Downloaded Gveret Levin font was invalid')
-            cached.write_bytes(data)
-        except Exception as exc:
-            raise RuntimeError('Gveret Levin handwriting font unavailable; install it or set SIG_NATURE_HEBREW_FONT') from exc
-        font_file = str(cached)
-    font = ImageFont.truetype(font_file, size)
-    return font
+def get_font(
+    size: int,
+    font_path: str | None = None,
+    script: str = "he",
+    weight: float = 450,
+) -> ImageFont.FreeTypeFont:
+    """Load bundled open handwriting fonts without network dependencies.
 
+    A caller-supplied font override remains available for debugging, and the
+    Hebrew default preserves the original get_font(size) API.
+    """
+    if script not in {"he", "en"}:
+        raise ValueError("Unsupported handwriting script")
+    if not 8 <= size <= 220:
+        raise ValueError("Invalid handwriting font size")
+    default = (
+        Path(__file__).resolve().parent / "assets" /
+        ("GveretLevin-Regular.ttf" if script == "he" else "Caveat-Variable.ttf")
+    )
+    override = (
+        font_path
+        or os.environ.get("SIG_NATURE_HEBREW_FONT" if script == "he"
+                          else "SIG_NATURE_LATIN_FONT")
+    )
+    font_file = Path(override) if override else default
+    if not font_file.is_file():
+        raise RuntimeError(
+            f"Handwriting font for {script} is unavailable at {font_file}"
+        )
+    font = ImageFont.truetype(str(font_file), size)
+    if script == "en" and hasattr(font, "get_variation_axes"):
+        try:
+            axes = font.get_variation_axes()
+            values = [
+                max(axis["minimum"], min(axis["maximum"], float(weight)))
+                if "weight" in str(axis["name"]).lower()
+                else axis["default"]
+                for axis in axes
+            ]
+            if values:
+                font.set_variation_by_axes(values)
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    return font
 
 def thin(foreground: set[tuple[int,int]]) -> set[tuple[int,int]]:
     """Zhang-Suen thinning to extract a one-pixel pen trajectory guide."""
