@@ -196,3 +196,33 @@ def test_rejects_model_claim_when_signature_is_absent() -> None:
     }
     with pytest.raises(NoVisibleSignatureError):
         parse_report(json.dumps(report))
+
+
+def test_photo_oversize_returns_http_413_before_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.portrait_analysis import MAX_IMAGE_BYTES
+    async def forbidden(*args: object) -> None:
+        raise AssertionError("Provider must not be called")
+
+    monkeypatch.setattr(main, "analyze_portrait_detailed", forbidden)
+    response = client.post(
+        "/api/analyze-photo",
+        data={"api_key": "test", "language": "he"},
+        files={"image": ("huge.png", b"0" * (MAX_IMAGE_BYTES + 1), "image/png")},
+    )
+    assert response.status_code == 413
+
+
+def test_malformed_portrait_model_result_is_a_provider_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.portrait_analysis import PortraitResponseError
+    async def invalid(*args: object) -> None:
+        raise PortraitResponseError("invalid structured JSON")
+
+    monkeypatch.setattr(main, "analyze_portrait_detailed", invalid)
+    response = client.post(
+        "/api/analyze-photo",
+        data={"api_key": "test", "language": "he"},
+        files={"image": ("photo.png", picture(), "image/png")},
+    )
+    assert response.status_code == 502
