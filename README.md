@@ -31,9 +31,9 @@ The handwriting engine rasterizes real cursive letterforms, skeletonizes them, f
 
 **Latin:** The existing single-stroke prototype continues to support Latin names.
 
-**Cinematic video:** Production no longer renders the cartoon pen in `backend/pen_sprite.py`. `backend/preview.py` now invokes `backend/cinematic_video.py`, which composites a **photographic-looking, 3/4 side-angle macro shot** with the actual ballpoint tip near the paper. The nib material and paper fibres are compact binary image assets in `backend/assets/`, derived from a previous image-generated macro reference created for this project (not stock photos or literal camera footage). A shallow depth of field, paper-surface foreshortening, tracking camera, contact/cast shadows, sensor texture, and physical-looking ink deposition are all applied consistently. The pen body exits the top-right of the frame, rather than being drawn whole from above. The camera follows the nib, then pulls back after the last stroke to reveal the entire signature.
+**Cinematic video:** Production no longer renders the cartoon pen in `backend/pen_sprite.py`. `backend/preview.py` now invokes `backend/cinematic_video.py`, which composites a **photographic-looking, 3/4 side-angle macro shot** with the actual ballpoint tip near the paper. The nib material and paper fibres are compact binary image assets in `backend/assets/`, derived from a previous image-generated macro reference created for this project (not stock photos or literal camera footage). A shallow depth of field, paper-surface foreshortening, tracking camera, contact/cast shadows, sensor texture, and physical-looking ink deposition are all applied consistently. The pen body exits the top-right of the frame, rather than being drawn whole from above. The camera follows the nib with eased, damped movement rather than chasing pixel-scale direction changes, then pulls back slowly after the last stroke to reveal the entire signature.
 
-The path motion remains driven by `backend/motion.py` (local speed variation and corner slowing) and `backend/stroke_route.py` (stroke continuity). Each frame reveals only the nib-visited region of the same path used by the transparent PNG, while ink and photo paper are projected through the same oblique paper-plane transform. **Rendering:** 1280×720 / 60 FPS / H.264 MP4 / CRF 17 / slow preset / adaptive duration (normally about 4-7.5 seconds including the final reveal). Video frames stream directly as RGB to FFmpeg, rather than creating hundreds of intermediate PNG files; no network video-generation service or paid video model is required. `numpy` and `opencv-python-headless` are production dependencies.
+The path motion remains driven by `backend/motion.py` (local speed variation and corner slowing) and `backend/stroke_route.py` (stroke continuity). Each frame reveals only the nib-visited region of the same path used by the transparent PNG, while ink and photo paper are projected through the same oblique paper-plane transform. **Rendering:** 1280×720 / 60 FPS / H.264 MP4 / CRF 17 / slow preset / adaptive duration (approximately 6.8-10.7 seconds including a 1.65-second final reveal). Video frames stream directly as RGB to FFmpeg, rather than creating hundreds of intermediate PNG files; no network video-generation service or paid video model is required. `numpy` and `opencv-python-headless` are production dependencies.
 
 These are composed **synthetic photographic frames**, not footage captured by a real camera; the high-resolution still of the nib is photographic-looking source material. The product is designed to look like a filmed macro signature. Visual review against actual pen-writing video remains the final quality criterion.
 
@@ -83,3 +83,15 @@ node --test tests/*.test.mjs
 ```
 
 External OpenAI calls are mocked in the tests, so no API credits are spent. FFmpeg is needed for the local cinematic MP4 pipeline test. The integration test renders 1280×720 photographic frames and may take longer than the other unit tests. The old GitHub workflow remains parked in `ci-disabled/ci.yml`; no workflows are active under `.github/workflows/`.
+
+
+### Motion polish
+
+The movement timeline uses local curvature to decelerate near bends, gently
+accelerates at the beginning, and eases into the final stroke. Bidirectional
+filtering of the velocity profile prevents skeleton jitter from appearing as
+hand tremor. The writing duration scales with path length and visual
+complexity rather than being fixed, and is deliberately slower than the
+earlier rapid version. The real-paper macro camera uses restrained positional
+inertia and a damped wrist angle so the pen body does not snap at corners.
+The pen photo and paper pigment textures are cached/reused where possible.
