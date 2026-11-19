@@ -80,7 +80,7 @@ def plan_signature(full_name: str, size: tuple[int, int] = (720, 720)) -> PenPat
             glyph = GLYPHS[char]
             points = [
                 (
-                    x_right - gx * letter_width + slant * gy * height,
+                    x_right - (1 - gx) * letter_width + slant * gy * height,
                     baseline + (gy - .5) * height,
                 )
                 for gx, gy in glyph
