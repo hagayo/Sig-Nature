@@ -119,3 +119,16 @@ def test_full_cinematic_video_has_clean_h264_frames(tmp_path:Path):
                           if v.startswith('nb_frames=')))
         assert frames == int(np.ceil((MotionTimeline(SimplePath()).writing_seconds
                                       + REVEAL_SECONDS) * FRAME_RATE))
+
+
+def test_macro_camera_has_natural_inertia():
+    from backend.cinematic_video import CinematicCamera
+    path = SimplePath()
+    camera = CinematicCamera(path)
+    start = camera.center.copy()
+    target = (float(start[0]-100), float(start[1]+40))
+    camera.transform(target, 0.)
+    # The camera must not snap directly to the nib on every frame.
+    assert 0 < abs(camera.center[0] - start[0]) < 30
+    assert 0 < abs(camera.center[1] - start[1]) < 15
+    assert REVEAL_SECONDS >= 1.5
