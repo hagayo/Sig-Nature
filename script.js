@@ -252,11 +252,13 @@ function responseErrorKey(code, message) {
   if (code === 413) return "imageTooLarge";
   if (code === 415) return "invalidImage";
   if (code === 422) {
-    if (/face|פנים/i.test(message)) return "noFace";
-    if (/signature|חתימה/i.test(message)) return "noSignature";
     if (/too long|exceeds.*limit/i.test(message)) return "nameTooLong";
     if (/letters|script|characters|unicode|control/i.test(message)) {
       return "invalidNameScript";
+    }
+    if (/no .*face|visible face|פנים.*לא/i.test(message)) return "noFace";
+    if (/no .*signature|recognizable signature|חתימה.*לא/i.test(message)) {
+      return "noSignature";
     }
     return "invalidInput";
   }
