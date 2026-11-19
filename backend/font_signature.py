@@ -291,5 +291,16 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
     # Preserve image bounds for tall ascenders and the optional underline.
     if any(x<1 or y<1 or x>=size[0]-1 or y>=size[1]-1 for x,y in all_points):
         raise ValueError('Signature flourishes do not fit the canvas')
+    # The final artwork is restricted to the *actual swept pen area*.
+    # Without this, pixels not traversed by the nib would pop into view on
+    # the last animation frame, violating the single-contact contract.
+    nib_width = max(6, min(16, round(font_size * .095)))
+    swept = Image.new("L", size, 0)
+    brush = ImageDraw.Draw(swept)
+    brush.line(all_points, fill=255, width=nib_width, joint="curve")
+    radius = nib_width / 2
+    sx, sy = all_points[0]
+    brush.ellipse((sx-radius, sy-radius, sx+radius, sy+radius), fill=255)
+    glyphs = ImageChops.multiply(glyphs, swept)
     return PenPath(tuple(all_points), tuple(pressures), style.speed,
-                   artwork=glyphs, reveal_width=max(6,min(16,round(font_size*.095))))
+                   artwork=glyphs, reveal_width=nib_width)
