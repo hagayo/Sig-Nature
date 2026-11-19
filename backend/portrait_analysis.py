@@ -202,18 +202,21 @@ def validate_portrait(portrait: bytes) -> str:
 def prepare_portrait_for_vision(portrait: bytes) -> bytes:
     """Apply EXIF orientation, flatten transparency, resize and encode JPEG."""
     validate_portrait(portrait)
-    with Image.open(BytesIO(portrait)) as original:
-        image = ImageOps.exif_transpose(original)
-        image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
-        if "A" in image.getbands() or "transparency" in image.info:
-            rgba = image.convert("RGBA")
-            rgb = Image.new("RGB", image.size, "white")
-            rgb.paste(rgba, mask=rgba.getchannel("A"))
-        else:
-            rgb = image.convert("RGB")
-        output = BytesIO()
-        rgb.save(output, format="JPEG", quality=88, optimize=True)
-        return output.getvalue()
+    try:
+        with Image.open(BytesIO(portrait)) as original:
+            image = ImageOps.exif_transpose(original)
+            image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+            if "A" in image.getbands() or "transparency" in image.info:
+                rgba = image.convert("RGBA")
+                rgb = Image.new("RGB", image.size, "white")
+                rgb.paste(rgba, mask=rgba.getchannel("A"))
+            else:
+                rgb = image.convert("RGB")
+            output = BytesIO()
+            rgb.save(output, format="JPEG", quality=88, optimize=True)
+            return output.getvalue()
+    except (OSError, UnidentifiedImageError, Image.DecompressionBombError) as exc:
+        raise ValueError("Image could not be fully decoded") from exc
 
 
 async def analyze_portrait_detailed(
