@@ -1,5 +1,4 @@
 """No-charge endpoint regression tests for the two creative analysis pages."""
-from dataclasses import asdict
 from io import BytesIO
 from pathlib import Path
 
