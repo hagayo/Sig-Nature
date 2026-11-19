@@ -8,8 +8,8 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from backend.portrait_analysis import (
-    MAX_IMAGE_BYTES, NoVisibleFaceError, analyze_portrait_detailed,
-    validate_portrait,
+    MAX_IMAGE_BYTES, NoVisibleFaceError, PortraitResponseError,
+    analyze_portrait_detailed, validate_portrait,
 )
 from backend.service import GeneratedAssets, generate_signature
 from backend.signature_analysis import NoVisibleSignatureError, analyze_signature
@@ -104,8 +104,8 @@ async def generate(
         assets = await generate_signature(full_name.strip(), content, api_key)
     except NoVisibleFaceError as exc:
         raise HTTPException(422, str(exc)) from exc
-    except VisionResponseError as exc:
-        raise HTTPException(502, "Portrait analysis was incomplete") from exc
+    except (VisionResponseError, PortraitResponseError) as exc:
+        raise HTTPException(502, "Portrait analysis was incomplete or invalid") from exc
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except httpx.HTTPStatusError as exc:
