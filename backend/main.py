@@ -99,6 +99,10 @@ async def generate(
     content = await _get_image(portrait)
     try:
         assets = await generate_signature(full_name.strip(), content, api_key)
+    except NoVisibleFaceError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except VisionResponseError as exc:
+        raise HTTPException(502, "Portrait analysis was incomplete") from exc
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except httpx.HTTPStatusError as exc:
