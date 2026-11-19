@@ -23,21 +23,69 @@ Open http://127.0.0.1:8000.
 
 All OpenAI calls are made with the API key entered for that request. The key and the input portrait/signature are **not saved** by the backend. Generated PNG/MP4 files are kept in `backend/generated/`, excluded from git. By default they persist until manually deleted. Optionally set `SIG_NATURE_ASSET_TTL_HOURS` to a positive number to remove expired completed results on the next generation request. Staging folders and unrelated files are never touched; this is opt-in, not a background scheduler. Expired download links stop working.
 
-## Handwriting engine
+## Personal signature engine
 
-**Hebrew:** `backend/font_signature.py` derives handwriting from the open-source [Gveret Levin](https://github.com/AlefAlefAlef/gveret-levin) font by AlefAlefAlef, SIL Open Font License 1.1. Noto Sans Hebrew is no longer the basis for signatures. The font is not bundled. The backend downloads the upstream TTF once and caches it at `~/.cache/sig-nature/GveretLevin-Regular.ttf`; alternatively set `SIG_NATURE_HEBREW_FONT` to a local TTF path.
+The form can now generate a personalized signature for **any supported
+Hebrew or Latin name**, rather than relying on the original test name.
+The same request path supports the following cases:
 
-The handwriting engine rasterizes real cursive letterforms, skeletonizes them, finds an ordered pen-down walk, joins otherwise disjoint components with visible pen strokes and finishes with a drawn flourish. Curved connectors follow glyph endpoints rather than using uniform straight bridges. Each photo influences letter width, height, slant, spacing, roundness, baseline, pressure, writing tempo and finishing gesture. Pressure now modulates stroke thickness and ink darkness throughout the handwritten letters, not only the simulated paper indentation. The same trajectory drives the animation and final PNG, with the raster artwork restricted to nib-traced ink to prevent a last-frame reveal of untraced lines.
+- Hebrew full names, including all final forms (ך, ם, ן, ף, ץ), long
+  surnames, multiple words, geresh/gershayim, maqaf and vowel points.
+- English and other Latin-script names with accented vowels, common special
+  letters, apostrophes and hyphenated names.
+- Mixed Hebrew/Latin names such as `שרה Smith` or `Hagay און`.
+- Different portrait impressions change stroke pressure, roundness,
+  proportions, slant, irregularity and length of the finishing flourish.
+- A deterministic signature for identical inputs; no random unrelated glyphs.
 
-**Latin:** The existing single-stroke prototype continues to support Latin names.
+`backend/name_rules.py` normalizes Unicode, strips diacritics in favor of
+readable hand lettering and rejects control characters, numbers and unsupported
+scripts. `backend/signature_composer.py` measures every glyph and its pen
+trajectory in unrestricted coordinates, lays out whole names in the appropriate
+writing direction, connects glyphs in a single visible pen-down stroke,
+adds a natural ending gesture and **only then fits the complete ink to the
+720×720 paper plane**. This prevents the clipping formerly caused by
+hard-coded starting coordinates. Short and long names use the same algorithm.
 
-**Cinematic video:** Production no longer renders the cartoon pen in `backend/pen_sprite.py`. `backend/preview.py` now invokes `backend/cinematic_video.py`, which composites a **photographic-looking, 3/4 side-angle macro shot** with the actual ballpoint tip near the paper. The nib material and paper fibres are compact binary image assets in `backend/assets/`, derived from a previous image-generated macro reference created for this project (not stock photos or literal camera footage). A shallow depth of field, paper-surface foreshortening, tracking camera, contact/cast shadows, sensor texture, and physical-looking ink deposition are all applied consistently. The pen body exits the top-right of the frame, rather than being drawn whole from above. The camera follows the nib with eased, damped movement rather than chasing pixel-scale direction changes, then pulls back slowly after the last stroke to reveal the entire signature.
+The handwritten font assets are included in the repository so first-run
+generation requires no font download:
 
-The path motion remains driven by `backend/motion.py` (local speed variation and corner slowing) and `backend/stroke_route.py` (stroke continuity). Each frame reveals only the nib-visited region of the same path used by the transparent PNG, while ink and photo paper are projected through the same oblique paper-plane transform. **Rendering:** 1280×720 / 60 FPS / H.264 MP4 / CRF 17 / slow preset / adaptive duration (approximately 6.8-10.7 seconds including a 1.65-second final reveal). Video frames stream directly as RGB to FFmpeg, rather than creating hundreds of intermediate PNG files; no network video-generation service or paid video model is required. `numpy` and `opencv-python-headless` are production dependencies.
+- Hebrew: **Gveret Levin**, AlefAlefAlef, SIL OFL 1.1
+  (`backend/assets/GveretLevin-Regular.ttf`,
+  `backend/assets/GveretLevin-OFL.txt`).
+- Latin: **Caveat**, Google Fonts, SIL OFL 1.1
+  (`backend/assets/Caveat-Variable.ttf`,
+  `backend/assets/Caveat-OFL.txt`).
 
-These are composed **synthetic photographic frames**, not footage captured by a real camera; the high-resolution still of the nib is photographic-looking source material. The product is designed to look like a filmed macro signature. Visual review against actual pen-writing video remains the final quality criterion.
+The fonts remain fully configurable through
+`SIG_NATURE_HEBREW_FONT` and `SIG_NATURE_LATIN_FONT` for local development.
+Unsupported scripts still receive a clear validation error rather than
+unreadable placeholders; the app does not claim universal language coverage.
+Handwriting is stylized: the font-to-stroke approximation is not
+motion-captured human writing.
 
-The font-derived glyphs and continuous route remain an **artistic approximation**: photographic macro rendering does not replace a motion-captured human signature. A real visual review against several Hebrew signatures remains necessary. Disconnected Hebrew glyph strokes necessarily acquire visible connecting ink lines to satisfy the single-contact requirement.
+### Cinematic pen and ink
+
+Production video uses `backend/cinematic_video.py`: a photographic-looking
+3/4 side-angle close-up of the nib on textured paper. Ink is deposited
+strictly along the same trajectory used for the transparent PNG. A stabilized
+camera follows the nib and pulls back to reveal the full signature. Motion is
+curvature-aware and deliberately slower (approximately 6.8-10.7 seconds,
+depending on the handwriting). Video is streamed at 1280×720, 60 FPS, H.264,
+CRF 17, slow preset. This is a photo-composited synthetic video, not
+photography of a physical hand.
+
+### Offline visual QA
+
+```sh
+python -m scripts.preview_styles --name "שרה לוי" --output styles.png
+python -m scripts.preview_cinema --name "John Smith" --style bold --output signature.mp4
+python -m pytest -q tests/test_general_names.py tests/test_signature_planner.py tests/test_font_signature.py
+```
+
+The test commands do not spend OpenAI credits. The old example name is no
+longer privileged by any drawing code. Full-run visual approval on real names
+and portraits remains an independent acceptance step.
 
 ## Analysis API
 
