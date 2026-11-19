@@ -13,6 +13,19 @@ from backend.signature_analysis import analyze_signature
 from backend.style_mapping import style_from_portrait
 
 app = FastAPI(title="Sig-Nature")
+
+
+@app.middleware("http")
+async def private_api_responses(request, call_next):
+    """Prevent caches from retaining personal generated and analyzed results."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 ASSET_DIR = Path(__file__).resolve().parent / "generated"
 
