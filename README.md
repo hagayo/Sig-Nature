@@ -31,9 +31,9 @@ The handwriting engine rasterizes real cursive letterforms, skeletonizes them, f
 
 **Latin:** The existing single-stroke prototype continues to support Latin names.
 
-**Video:** 36 progressive frames, H.264 MP4, 24 FPS, 1.5 seconds. The pen nib remains positioned at the current path endpoint. Paper indentation and pressure shading are decorative. No invisible pen-lift moves are used.
+**Video:** 60 FPS H.264 MP4 with adaptive duration (roughly 3-6.5 seconds, including a half-second final hold). Motion is driven by `backend/motion.py`: curvature-based slowing, faster straight strokes, acceleration/easing and variable writer tempo. `backend/stroke_route.py` follows unvisited skeleton edges with heading continuity and reconnects by shortest paths when necessary, replacing the old reverse-DFS stroke traversal. `backend/pen_sprite.py` renders a detailed 2x anti-aliased blue ballpoint with metallic tip, grip, clip, highlights and a contact shadow. During writing, the nib stays exactly on the current trajectory endpoint; the pen lifts and clears the signature **only after the last ink stroke**. `backend/pen_path.py` renders ink masks at 2x supersampling, then reduces them with Lanczos. `backend/animation.py` uses x264 CRF 17, `preset slow`, yuv420p and faststart for quality and playback compatibility. Transparent PNG and MP4 always use the same geometric path.
 
-The handwritten font shapes and algorithmic one-stroke routing are an **artistic approximation**, not an exact simulation of how every human would physically write. Disconnected Hebrew glyph strokes necessarily acquire visible connecting ink lines to satisfy the single-contact requirement.
+The font-derived glyphs and continuous route remain an **artistic approximation**: smoother timing and a realistic pen improve the animation, but do not create a motion-captured human signature. A real visual review against several Hebrew signatures remains necessary. Disconnected Hebrew glyph strokes necessarily acquire visible connecting ink lines to satisfy the single-contact requirement.
 
 ## Analysis API
 
