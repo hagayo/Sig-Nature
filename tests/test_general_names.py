@@ -108,3 +108,24 @@ def test_script_fonts_are_packaged_with_license() -> None:
         assert any(p.name.startswith(name) and p.suffix==".ttf"
                    for p in assets.iterdir())
         assert (assets / (name+"-OFL.txt")).is_file()
+
+
+@pytest.mark.parametrize("canvas", [
+    (160,160), (256,256), (720,720), (1280,640),
+])
+@pytest.mark.parametrize("name", ["א", "שרה לוי", "Hagay Onn", "שרה Smith"])
+def test_general_composer_fits_rectangular_and_small_canvases(
+    canvas: tuple[int,int], name: str,
+) -> None:
+    path = plan_signature(name, size=canvas)
+    assert path.artwork is not None and path.artwork.size == canvas
+    assert path.artwork.getbbox() is not None
+    assert all(0 <= x < canvas[0] and 0 <= y < canvas[1]
+               for x,y in path.points)
+
+
+def test_same_name_with_diacritics_produces_same_geometric_identity() -> None:
+    direct = plan_signature("Jose Garcia", portrait=b"same-face")
+    accents = plan_signature("José García", portrait=b"same-face")
+    assert direct.points == accents.points
+    assert direct.artwork.tobytes() == accents.artwork.tobytes()
