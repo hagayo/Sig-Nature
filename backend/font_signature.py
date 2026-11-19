@@ -162,7 +162,7 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
                 (1,-shear,shear*image.height/2-padding/2,0,1,0),
                 resample=Image.Resampling.BICUBIC)
         if style.pressure>.80:image=image.filter(ImageFilter.MaxFilter(3))
-        if style.pressure<.27:image=image.filter(ImageFilter.MinFilter(3))
+        # Keep narrow handwritten strokes readable even with light pressure.
         left=round(cursor-image.width+style.slant*font_size*.13)
         top=round(baseline+box[1]*style.height-3*style.height
                   -style.rise*index/max(1,count-1)*font_size*.4
@@ -202,8 +202,11 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
                 qx,qy=b[0]-5,b[1]
             dx=b[0]-a[0]
             span=max(3,abs(dx))
-            c1=(a[0]-span*.32,a[1]+(a[1]-py)*.24)
-            c2=(b[0]+span*.30,b[1]-(qy-b[1])*.24)
+            curve=max(.10,min(.96,style.roundness))
+            c1=(a[0]-span*(.21+.18*curve),
+                a[1]+(a[1]-py)*.24+font_size*(curve-.5)*.025)
+            c2=(b[0]+span*(.20+.18*curve),
+                b[1]-(qy-b[1])*.24+font_size*(curve-.5)*.04)
             join=[]
             for j in range(1,25):
                 t=j/24
