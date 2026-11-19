@@ -14,6 +14,7 @@ from uuid import uuid4
 from backend.portrait_analysis import analyze_portrait, validate_portrait
 from backend.preview import generate_preview
 from backend.signature_planner import validate_name
+from backend.name_rules import prepare_name
 from backend.style_mapping import style_from_portrait
 
 ASSET_DIR = Path(__file__).resolve().parent / "generated"
@@ -82,16 +83,17 @@ async def generate_signature(
 ) -> GeneratedAssets:
     """Generate photo-specific ink and video; do not store photo or API key."""
     validate_portrait(portrait)
-    _, is_hebrew = validate_name(full_name)
+    normalized_name, _ = validate_name(full_name)
+    name = prepare_name(normalized_name)
     # Preflight local dependencies BEFORE using the user's paid OpenAI credits.
     # Both checks run outside the asynchronous server event loop.
     await asyncio.to_thread(ensure_video_encoder)
     # A missing photographic plate must fail before the paid vision request.
     from backend.cinematic_video import validate_cinematic_materials
     await asyncio.to_thread(validate_cinematic_materials)
-    if is_hebrew:
-        from backend.font_signature import get_font
-        await asyncio.to_thread(get_font, 64)
+    from backend.font_signature import get_font
+    for script in {run.script for run in name.runs}:
+        await asyncio.to_thread(get_font, 64, None, script)
     await asyncio.to_thread(purge_expired_assets, ASSET_DIR)
     impression = await analyze_portrait(portrait, api_key)
     handwriting = style_from_portrait(impression)
