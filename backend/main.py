@@ -1,13 +1,16 @@
-"""Sig-Nature: same-origin site, image analysis and generated asset delivery."""
+"""Sig-Nature API and shared three-page web interface."""
+from dataclasses import asdict
 from pathlib import Path
 import subprocess
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
-from backend.portrait_analysis import MAX_IMAGE_BYTES, validate_portrait
+from backend.portrait_analysis import MAX_IMAGE_BYTES, analyze_portrait, validate_portrait
 from backend.service import GeneratedAssets, generate_signature
+from backend.signature_analysis import analyze_signature
+from backend.style_mapping import style_from_portrait
 
 app = FastAPI(title="Sig-Nature")
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,6 +29,16 @@ def home() -> FileResponse:
     return FileResponse(BASE_DIR / "index.html")
 
 
+@app.get("/analyze-photo.html", include_in_schema=False)
+def photo_page() -> FileResponse:
+    return FileResponse(BASE_DIR / "analyze-photo.html")
+
+
+@app.get("/analyze-signature.html", include_in_schema=False)
+def signature_page() -> FileResponse:
+    return FileResponse(BASE_DIR / "analyze-signature.html")
+
+
 @app.get("/script.js", include_in_schema=False)
 def javascript() -> FileResponse:
     return FileResponse(BASE_DIR / "script.js", media_type="text/javascript")
@@ -36,6 +49,28 @@ def stylesheet() -> FileResponse:
     return FileResponse(BASE_DIR / "style.css", media_type="text/css")
 
 
+def _provider_problem(exc: httpx.HTTPStatusError) -> HTTPException:
+    status = exc.response.status_code
+    if status in {401, 403}:
+        return HTTPException(400, "The OpenAI API key was rejected")
+    if status == 429:
+        return HTTPException(503, "OpenAI rate limit reached")
+    return HTTPException(502, f"OpenAI response failed ({status})")
+
+
+async def _get_image(upload: UploadFile) -> bytes:
+    if upload.content_type not in {"image/png", "image/jpeg", "image/webp"}:
+        raise HTTPException(415, "Upload JPEG, PNG or WebP")
+    data = await upload.read(MAX_IMAGE_BYTES + 1)
+    try:
+        validate_portrait(data)
+    except ValueError as exc:
+        raise HTTPException(415, str(exc)) from exc
+    finally:
+        await upload.close()
+    return data
+
+
 @app.post("/api/generate")
 async def generate(
     full_name: str = Form(...),
@@ -44,26 +79,59 @@ async def generate(
 ) -> dict[str, str]:
     if not full_name.strip() or not api_key.strip():
         raise HTTPException(422, "Name and API key are required")
-    if portrait.content_type not in {"image/png", "image/jpeg", "image/webp"}:
-        raise HTTPException(415, "Upload a JPEG, PNG or WebP portrait")
-    content = await portrait.read(MAX_IMAGE_BYTES + 1)
-    try:
-        validate_portrait(content)
-    except ValueError as exc:
-        raise HTTPException(415, str(exc)) from exc
+    content = await _get_image(portrait)
     try:
         assets = await generate_signature(full_name.strip(), content, api_key)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == 401:
-            raise HTTPException(400, "The OpenAI API key was rejected") from exc
-        if exc.response.status_code == 429:
-            raise HTTPException(503, "OpenAI rate limit reached") from exc
-        raise HTTPException(502, f"OpenAI response failed ({exc.response.status_code})") from exc
-    except (httpx.RequestError, subprocess.CalledProcessError, FileNotFoundError) as exc:
-        raise HTTPException(503, "Image analysis or video encoder unavailable") from exc
+        raise _provider_problem(exc) from exc
+    except (httpx.RequestError, subprocess.CalledProcessError, FileNotFoundError, RuntimeError) as exc:
+        raise HTTPException(503, "Image analysis or media generation unavailable") from exc
     return present_results(assets)
+
+
+@app.post("/api/analyze-photo")
+async def analyze_photo_route(
+    image: UploadFile = File(...),
+    api_key: str = Form(...),
+    language: str = Form("he"),
+) -> dict[str, object]:
+    if language not in {"he", "en"} or not api_key.strip():
+        raise HTTPException(422, "Invalid language or missing API key")
+    photo = await _get_image(image)
+    try:
+        traits = await analyze_portrait(photo, api_key)
+    except httpx.HTTPStatusError as exc:
+        raise _provider_problem(exc) from exc
+    except httpx.RequestError as exc:
+        raise HTTPException(503, "OpenAI is temporarily unreachable") from exc
+    except ValueError as exc:
+        raise HTTPException(502, "Invalid portrait analysis output") from exc
+    return {
+        "traits": asdict(traits),
+        "writing_style": asdict(style_from_portrait(traits)),
+    }
+
+
+@app.post("/api/analyze-signature")
+async def analyze_signature_route(
+    image: UploadFile = File(...),
+    api_key: str = Form(...),
+    language: str = Form("he"),
+) -> dict[str, object]:
+    if language not in {"he", "en"} or not api_key.strip():
+        raise HTTPException(422, "Invalid language or missing API key")
+    signature = await _get_image(image)
+    try:
+        report = await analyze_signature(signature, api_key, language)
+    except httpx.HTTPStatusError as exc:
+        raise _provider_problem(exc) from exc
+    except httpx.RequestError as exc:
+        raise HTTPException(503, "OpenAI is temporarily unreachable") from exc
+    except ValueError as exc:
+        raise HTTPException(502, "Invalid signature analysis output") from exc
+    return {"analysis": report.to_payload()}
 
 
 @app.get("/api/assets/{asset_id}/{filename}")
