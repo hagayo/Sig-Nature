@@ -14,7 +14,7 @@
     </header>
     <form id="signature-form">
       <label><span data-i18n="fullName">שם מלא</span><input id="full-name" required autocomplete="name" placeholder="שם מלא"></label>
-      <label><span data-i18n="portrait">תמונת פנים</span><input id="portrait" type="file" accept="image/*" required></label>
+      <label><span data-i18n="portrait">תמונת פנים</span><input id="portrait" type="file" accept="image/png,image/jpeg,image/webp" required></label>
       <label><span data-i18n="apiKey">מפתח API</span><input id="api-key" type="password" required autocomplete="off"></label>
       <button id="generate" type="submit" data-i18n="generate">הפעל</button>
     </form>
@@ -23,7 +23,7 @@
       <img id="signature-preview" alt="חתימה על רקע שקוף">
       <a id="download-png" download="signature.png" data-i18n="downloadPng">הורדת חתימה PNG</a>
       <video id="animation-preview" controls playsinline></video>
-      <a id="download-video" download="signature.webm" data-i18n="downloadVideo">הורדת סרטון</a>
+      <a id="download-video" download="signature.mp4" data-i18n="downloadVideo">הורדת סרטון</a>
     </section>
   </main>
   <script src="script.js"></script>
