@@ -31,7 +31,7 @@ WORLD_SUPERSAMPLE = 2
 PAPER_SHEAR = -.14
 PAPER_FORESHORTEN = .60
 MACRO_ZOOM = 2.65
-REVEAL_SECONDS = 1.35
+REVEAL_SECONDS = 1.65
 
 
 @lru_cache(maxsize=1)
@@ -232,8 +232,10 @@ class CinematicCamera:
         # A stabilized macro rig follows the nib closely enough that the
         # photographic pen shaft always exits beyond the image border.
         # A lagging camera would expose the right edge of the reference plate.
-        self.center[0]+=(target[0]-self.center[0])*.80
-        self.center[1]+=(target[1]-self.center[1])*.70
+        # Smooth camera inertia: follow handwriting rather than tiny
+        # pixel-scale jitter. The actual nib remains anchored to the ink.
+        self.center[0]+=(target[0]-self.center[0])*.16
+        self.center[1]+=(target[1]-self.center[1])*.13
         blend=np.clip(seconds_after/REVEAL_SECONDS,0,1)
         blend=blend*blend*(3-2*blend)
         focus=(1-blend)*self.center+blend*self.final
@@ -254,6 +256,7 @@ def cinematic_frames(path,timeline:MotionTimeline|None=None,
     xx,yy,lighting=_optical_layers()
     ink=_Ink(path,(720,720))
     last_progress=0.
+    wrist=np.array((1.,0.), dtype=np.float64)
     for frame in range(ceil((motion.writing_seconds + REVEAL_SECONDS)*FRAME_RATE)):
         seconds=frame/FRAME_RATE
         state=motion.at(seconds)
@@ -280,7 +283,12 @@ def cinematic_frames(path,timeline:MotionTimeline|None=None,
         soft=cv2.GaussianBlur(result,(0,0),2.1)
         result=np.uint8(result*(1-blur_factor[:,:,None])+soft*blur_factor[:,:,None])
         if after < .78:
-            result=_pen_layer(result,(nx,ny),state.direction,after)
+            # The wrist cannot rotate instantaneously at every tiny bend.
+            tangent=np.asarray(state.direction,dtype=np.float64)
+            wrist=.955*wrist+.045*tangent
+            norm=np.linalg.norm(wrist)
+            if norm>1e-8:wrist/=norm
+            result=_pen_layer(result,(nx,ny),tuple(wrist),after)
         yield np.ascontiguousarray(result)
 
 
