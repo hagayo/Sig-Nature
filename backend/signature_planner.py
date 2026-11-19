@@ -4,7 +4,7 @@ Every glyph and visible inter-glyph connector belongs to one pen-down polyline.
 The photo's artistic analysis influences glyph geometry before rasterization.
 """
 from hashlib import sha256
-from math import cos, pi, sin
+from math import pi, sin
 import unicodedata
 
 from backend.pen_path import PenPath, Point
