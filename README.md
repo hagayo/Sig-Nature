@@ -1,77 +1,53 @@
 # Sig-Nature
 
-Turn a name and a portrait into a playful handwritten signature and a video of
-a blue ballpoint pen writing that **exact same continuous stroke**.
+A playful portrait-inspired signature maker, plus two stand-alone analysis tools.
 
-## Running locally
+## Pages
 
-Requirements: Python 3.12+, FFmpeg with libx264, and an OpenAI API key belonging
-to the user. No Node server, database, or GitHub Actions are needed.
+- `/` - Create a signature from a full name, a portrait and your own OpenAI API key. Download the exact same result as a transparent PNG and a video.
+- `/analyze-photo.html` - Inspect the visual impressions identified in a portrait and all numeric handwriting parameters derived from them, for debugging.
+- `/analyze-signature.html` - Upload an existing handwritten signature and get a playful visual interpretation of its strokes and style.
+
+All three pages use **the same** `style.css` and `script.js`, one navigation/header design, responsive layout, and a Hebrew/English toggle. CSS uses shared `:root` color, spacing, radius and button tokens.
+
+## Local setup (Windows 10 or Linux)
+
+Requirements: Python 3.12+, FFmpeg with `libx264`, internet access, and a personal OpenAI API key.
 
 ```sh
 python -m pip install -r requirements.txt
 python -m uvicorn backend.main:app --reload
 ```
 
-Open **http://127.0.0.1:8000**. Supply a Hebrew or Latin full name, a JPEG,
-PNG or WebP portrait and your own OpenAI API key. Select Hebrew/English in the
-interface. It returns a transparent **signature.png** and a **signature.mp4**
-(H.264, yuv420p, 24 FPS, 36 frames, 1.5 seconds).
+Open http://127.0.0.1:8000.
 
-## Architecture
+All OpenAI calls are made with the API key entered for that request. The key and the input portrait/signature are **not saved** by the backend. Generated PNG/MP4 files are kept in `backend/generated/`, which is excluded from git. This local MVP has no automatic retention cleanup; remove old results manually.
 
-1. `portrait_analysis.py` - OpenAI vision produces 18 scores for the **visual
-   expression and theatrical character** conveyed by the photograph (smiling,
-   tense, tough, cute, playful, elegant, etc.). The scores are artistic
-   impressions, not personality assessments.
-2. `style_mapping.py` - These scores control pressure, stroke roundness,
-   slant, irregularity, width, height, letter spacing, writing rhythm,
-   directional rise and finishing flourish.
-3. `signature_planner.py` - Selects Hebrew Noto font geometry or the original
-   experimental Latin path.
-4. `font_signature.py` - Renders actual **Noto Sans Hebrew** glyph shapes at
-   a photo-dependent width, height, shear, weight and baseline. Morphological
-   thinning extracts each glyph's centerline, then a graph traversal produces
-   one continuous pen-down route. Fine visible connectors join otherwise
-   disconnected components, letters, and words. The original legible font
-   silhouettes are retained as the rasterization mask.
-5. `pen_path.py` - Renders an exact distance-based prefix at every video frame.
-   For Hebrew, every animation frame reveals only the portion of the Noto
-   glyph mask visited by the pen; ink pressure and simulated paper indentation
-   are independent. Latin uses the original single-stroke renderer.
-   The pen nib stays at the current final path point. PNG uses the same path.
-6. `animation.py` - Encodes exactly 36 numbered frames with FFmpeg to an
-   MP4 encoded as H.264, yuv420p, with faststart.
-7. `service.py` - Calls portrait analysis, renders files to a temporary
-   directory, then atomically publishes the PNG/MP4 pair. Raw photos and API
-   keys are not saved. Only generated results persist in `backend/generated/`
-   (ignored by git).
+## Handwriting engine
 
-The Hebrew path preserves recognizable font letterforms rather than freehand
-symbol sketches. It is still an artistic approximation of handwriting, not a
-trained signature model. **The pen never lifts**. Thin visible connectors are
-necessary whenever font letters contain separate strokes. Latin glyphs still
-use the earlier experimental geometry.
+**Hebrew:** `backend/font_signature.py` derives handwriting from the open-source [Gveret Levin](https://github.com/AlefAlefAlef/gveret-levin) font by AlefAlefAlef, SIL Open Font License 1.1. Noto Sans Hebrew is no longer the basis for signatures. The font is not bundled. The backend downloads the upstream TTF once and caches it at `~/.cache/sig-nature/GveretLevin-Regular.ttf`; alternatively set `SIG_NATURE_HEBREW_FONT` to a local TTF path.
 
-### Font licensing and first-run setup
+The handwriting engine rasterizes real cursive letterforms, skeletonizes them, finds an ordered pen-down walk, joins otherwise disjoint components with visible pen strokes and finishes with a drawn flourish. Curved connectors follow glyph endpoints rather than using uniform straight bridges. Each photo influences letter width, height, slant, spacing, roundness, baseline, pressure, writing tempo and finishing gesture. The same trajectory drives the animation and final PNG.
 
-Hebrew signatures use **Noto Sans Hebrew**, copyright 2022 The Noto Project
-Authors, under [SIL OFL 1.1](https://github.com/google/fonts/blob/main/ofl/notosanshebrew/OFL.txt).
-No font binaries are committed to Sig-Nature. On machines without the font,
-the backend downloads the upstream Google Fonts variable TTF once into
-`~/.cache/sig-nature/`. To bypass automatic download, install Noto Sans Hebrew
-locally and set `SIG_NATURE_HEBREW_FONT` to its absolute `.ttf` path.
-Windows 10 is supported; no Node runtime is required to run the app.
+**Latin:** The existing single-stroke prototype continues to support Latin names.
 
+**Video:** 36 progressive frames, H.264 MP4, 24 FPS, 1.5 seconds. The pen nib remains positioned at the current path endpoint. Paper indentation and pressure shading are decorative. No invisible pen-lift moves are used.
 
-## Tests
+The handwritten font shapes and algorithmic one-stroke routing are an **artistic approximation**, not an exact simulation of how every human would physically write. Disconnected Hebrew glyph strokes necessarily acquire visible connecting ink lines to satisfy the single-contact requirement.
 
-Run locally without triggering GitHub Actions:
+## Analysis API
+
+- `POST /api/generate`: multipart `full_name`, `portrait`, `api_key` - returns `signature_png_url`, `animation_mp4_url`.
+- `POST /api/analyze-photo`: multipart `image`, `api_key`, `language` (`he`/`en`) - returns `traits` and `writing_style` exactly as used by generation.
+- `POST /api/analyze-signature`: multipart `image`, `api_key`, `language` - returns a narrative interpretation and visible features of the uploaded signature.
+
+Descriptions of personality and emotion are **creative impressions of an image**, not factual measurements.
+
+## Local tests (do not trigger GitHub Actions)
 
 ```sh
 python -m pytest -q
-node --test tests/frontend.test.mjs
+node --test tests/*.test.mjs
 ```
 
-The integration tests mock the external vision API; they do not spend API
-credits. The MP4 integration test requires local FFmpeg.
+External OpenAI calls are mocked in the tests, so no API credits are spent. FFmpeg is needed for the local MP4 pipeline test. The old GitHub workflow remains parked in `ci-disabled/ci.yml`; no workflows are active under `.github/workflows/`.
