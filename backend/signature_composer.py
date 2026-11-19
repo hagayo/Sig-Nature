@@ -191,10 +191,14 @@ def create_personal_signature(
     style = style or WritingStyle()
     digest = sha256(prepared.display.encode("utf-8")+b"\x00"+portrait).digest()
     font_size = 104
+    # Load only scripts actually present in this person's name.
+    scripts = {run.script for run in prepared.runs}
     fonts = {
-        "he": get_font(font_size,font_path,script="he"),
-        "en": get_font(font_size,script="en",
-                       weight=390+style.pressure*230),
+        script: get_font(
+            font_size, font_path if script == "he" else None,
+            script=script, weight=390 + style.pressure*230,
+        )
+        for script in scripts
     }
     runs: list[tuple[NameRun,list[Glyph],float,float]] = []
     cursor = 0.
