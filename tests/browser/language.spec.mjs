@@ -42,7 +42,7 @@ test("language toggle renders only permitted scripts in visible UI", async ({ pa
         if (el.id === "language-toggle" && field === "text") continue;
         if (el.tag === "h1" && value === "Sig-Nature") continue;
         // API, PNG, Python and other explicitly untranslated technical tokens.
-        const normalized = lang === "he" ? value.replace(/\b(?:API|PNG|Python|WebM)\b/g, "") : value;
+        const normalized = lang === "he" ? value.replace(/\b(?:API|PNG|MP4|Python|WebM)\b/g, "") : value;
         const invalid = [...normalized].filter(ch => (lang === "he" ? latin : hebrew).test(ch));
         if (invalid.length) {
           const selector = el.id ? `#${el.id}` : el.selector;
