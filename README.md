@@ -21,13 +21,13 @@ python -m uvicorn backend.main:app --reload
 
 Open http://127.0.0.1:8000.
 
-All OpenAI calls are made with the API key entered for that request. The key and the input portrait/signature are **not saved** by the backend. Generated PNG/MP4 files are kept in `backend/generated/`, which is excluded from git. This local MVP has no automatic retention cleanup; remove old results manually.
+All OpenAI calls are made with the API key entered for that request. The key and the input portrait/signature are **not saved** by the backend. Generated PNG/MP4 files are kept in `backend/generated/`, excluded from git. By default they persist until manually deleted. Optionally set `SIG_NATURE_ASSET_TTL_HOURS` to a positive number to remove expired completed results on the next generation request. Staging folders and unrelated files are never touched; this is opt-in, not a background scheduler. Expired download links stop working.
 
 ## Handwriting engine
 
 **Hebrew:** `backend/font_signature.py` derives handwriting from the open-source [Gveret Levin](https://github.com/AlefAlefAlef/gveret-levin) font by AlefAlefAlef, SIL Open Font License 1.1. Noto Sans Hebrew is no longer the basis for signatures. The font is not bundled. The backend downloads the upstream TTF once and caches it at `~/.cache/sig-nature/GveretLevin-Regular.ttf`; alternatively set `SIG_NATURE_HEBREW_FONT` to a local TTF path.
 
-The handwriting engine rasterizes real cursive letterforms, skeletonizes them, finds an ordered pen-down walk, joins otherwise disjoint components with visible pen strokes and finishes with a drawn flourish. Curved connectors follow glyph endpoints rather than using uniform straight bridges. Each photo influences letter width, height, slant, spacing, roundness, baseline, pressure, writing tempo and finishing gesture. The same trajectory drives the animation and final PNG.
+The handwriting engine rasterizes real cursive letterforms, skeletonizes them, finds an ordered pen-down walk, joins otherwise disjoint components with visible pen strokes and finishes with a drawn flourish. Curved connectors follow glyph endpoints rather than using uniform straight bridges. Each photo influences letter width, height, slant, spacing, roundness, baseline, pressure, writing tempo and finishing gesture. Pressure now modulates stroke thickness and ink darkness throughout the handwritten letters, not only the simulated paper indentation. The same trajectory drives the animation and final PNG, with the raster artwork restricted to nib-traced ink to prevent a last-frame reveal of untraced lines.
 
 **Latin:** The existing single-stroke prototype continues to support Latin names.
 
@@ -43,6 +43,19 @@ The handwritten font shapes and algorithmic one-stroke routing are an **artistic
 - Both analysis routes reject an unrecognizable image with HTTP 422. A malformed, refused or incomplete structured vision response returns 502, and provider errors are mapped separately. Prompts and JSON schemas live in `backend/portrait_analysis.py` and `backend/signature_analysis.py`; both use `backend/vision_client.py` for identical OpenAI request handling.
 
 Descriptions of personality and emotion are **creative impressions of an image**, not factual measurements.
+
+## No-API visual QA
+
+Use the deterministic four-style contact sheet to assess handwriting readability
+and individuality without sending images, spending OpenAI credits or running CI:
+
+```sh
+python -m scripts.preview_styles --name "חגי און" --output signature-preview.png
+```
+
+The command writes four isolated transparent PNGs and a 2-by-2 comparison
+image. Use `--font C:/path/to/GveretLevin-Regular.ttf` when offline. It is a
+visual inspection tool, not a claim that human handwriting realism is solved.
 
 ## Local tests (do not trigger GitHub Actions)
 
