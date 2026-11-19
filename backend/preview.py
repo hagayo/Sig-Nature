@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from backend.animation import encode_animation
+from backend.motion import MotionTimeline
 from backend.pen_path import render_frames, render_signature
 from backend.signature_planner import plan_signature
 from backend.style_mapping import WritingStyle
@@ -19,8 +20,9 @@ def generate_preview(
     output_dir.mkdir(parents=True, exist_ok=True)
     png = render_signature(path, output_dir / "signature.png")
     mp4 = output_dir / "signature.mp4"
+    timeline = MotionTimeline(path)
     with TemporaryDirectory(prefix="signature-frames-") as directory:
         frames = Path(directory)
-        render_frames(path, frames)
-        encode_animation(frames, mp4)
+        count = render_frames(path, frames, timeline=timeline)
+        encode_animation(frames, mp4, frame_count=count)
     return png, mp4
