@@ -2,7 +2,6 @@
 from dataclasses import asdict
 from io import BytesIO
 import json
-import math
 
 import pytest
 from PIL import Image
