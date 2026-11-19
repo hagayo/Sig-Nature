@@ -27,7 +27,7 @@ def test_different_names_produce_different_paths() -> None:
     assert plan_signature("חגי און") != plan_signature("דני כהן")
 
 
-@pytest.mark.parametrize("name", ["", "   ", "abc", "חגי 123"])
+@pytest.mark.parametrize("name", ["", "   ", "חגי 123", "אבג hello"])
 def test_invalid_name_is_rejected(name: str) -> None:
     with pytest.raises(ValueError):
         plan_signature(name)
@@ -50,4 +50,33 @@ def test_same_name_same_portrait_is_reproducible() -> None:
     photo = b"same-image-content"
     assert plan_signature("חגי און", portrait=photo) == plan_signature(
         "חגי און", portrait=photo
+    )
+
+def test_latin_name_supported_without_lifting() -> None:
+    path = plan_signature("Hagay Onn")
+    assert len(path.points) > 2
+    assert path.length > 0
+
+
+def test_photo_scores_change_actual_pen_geometry() -> None:
+    from backend.portrait_analysis import PortraitStyle
+    from backend.style_mapping import style_from_portrait
+
+    happy = style_from_portrait(PortraitStyle(joy=1, playful=1, cute=1))
+    tense = style_from_portrait(PortraitStyle(tension=1, tough=1, anger=1))
+    joyful_ink = plan_signature("חגי און", portrait=b"image-1", style=happy)
+    tense_ink = plan_signature("חגי און", portrait=b"image-1", style=tense)
+    assert joyful_ink.points != tense_ink.points
+    assert joyful_ink.pressures != tense_ink.pressures
+
+
+def test_visible_expression_dominates_micro_variation() -> None:
+    from backend.portrait_analysis import PortraitStyle
+    from backend.style_mapping import style_from_portrait
+
+    delighted = style_from_portrait(PortraitStyle(joy=1, sadness=0, energy=1))
+    somber = style_from_portrait(PortraitStyle(joy=0, sadness=1, energy=0))
+    assert delighted.rise > somber.rise
+    assert plan_signature("חגי און", style=delighted) != plan_signature(
+        "חגי און", style=somber
     )
