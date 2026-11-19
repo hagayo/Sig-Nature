@@ -12,9 +12,8 @@ specular highlights, tip and transparent grip; no vector substitute is used.
 from __future__ import annotations
 
 from bisect import bisect_right
-from dataclasses import dataclass
 from functools import lru_cache
-from math import ceil, cos, pi, sin
+from math import ceil, cos, sin
 from pathlib import Path
 import subprocess
 from typing import Iterator
@@ -59,7 +58,6 @@ def _paper_world() -> np.ndarray:
     _, paper = _assets()
     sample = paper.astype(np.float32)
     high_pass = sample - cv2.GaussianBlur(sample, (0, 0), 15)
-    h, w = sample.shape[:2]
     # Repeated *grain*, not repeated lighting patches or text.
     reflect = np.concatenate([high_pass, high_pass[::-1,:,:]], axis=0)
     reflect = np.concatenate([reflect, reflect[:,::-1,:]], axis=1)
