@@ -27,22 +27,42 @@ interface. It returns a transparent **signature.png** and a **signature.mp4**
 2. `style_mapping.py` - These scores control pressure, stroke roundness,
    slant, irregularity, width, height, letter spacing, writing rhythm,
    directional rise and finishing flourish.
-3. `signature_planner.py` - Converts a Hebrew or Latin name into **one
-   uninterrupted pen-down path**. Curved bridges between letters and words are
-   deliberately visible. Every letter has a defined directed single-path glyph.
-4. `pen_path.py` - Renders an exact distance-based prefix at every video frame.
-   Ink width/opacity and slight simulated paper indentation depend on pressure.
+3. `signature_planner.py` - Selects Hebrew Noto font geometry or the original
+   experimental Latin path.
+4. `font_signature.py` - Renders actual **Noto Sans Hebrew** glyph shapes at
+   a photo-dependent width, height, shear, weight and baseline. Morphological
+   thinning extracts each glyph's centerline, then a graph traversal produces
+   one continuous pen-down route. Fine visible connectors join otherwise
+   disconnected components, letters, and words. The original legible font
+   silhouettes are retained as the rasterization mask.
+5. `pen_path.py` - Renders an exact distance-based prefix at every video frame.
+   For Hebrew, every animation frame reveals only the portion of the Noto
+   glyph mask visited by the pen; ink pressure and simulated paper indentation
+   are independent. Latin uses the original single-stroke renderer.
    The pen nib stays at the current final path point. PNG uses the same path.
-5. `animation.py` - Encodes exactly 36 numbered frames with FFmpeg to an
+6. `animation.py` - Encodes exactly 36 numbered frames with FFmpeg to an
    MP4 encoded as H.264, yuv420p, with faststart.
-6. `service.py` - Calls portrait analysis, renders files to a temporary
+7. `service.py` - Calls portrait analysis, renders files to a temporary
    directory, then atomically publishes the PNG/MP4 pair. Raw photos and API
    keys are not saved. Only generated results persist in `backend/generated/`
    (ignored by git).
 
-The single-stroke alphabets are intentionally stylized approximations, not a
-trained handwriting model. Visual legibility should be reviewed for each
-supported language and long names.
+The Hebrew path preserves recognizable font letterforms rather than freehand
+symbol sketches. It is still an artistic approximation of handwriting, not a
+trained signature model. **The pen never lifts**. Thin visible connectors are
+necessary whenever font letters contain separate strokes. Latin glyphs still
+use the earlier experimental geometry.
+
+### Font licensing and first-run setup
+
+Hebrew signatures use **Noto Sans Hebrew**, copyright 2022 The Noto Project
+Authors, under [SIL OFL 1.1](https://github.com/google/fonts/blob/main/ofl/notosanshebrew/OFL.txt).
+No font binaries are committed to Sig-Nature. On machines without the font,
+the backend downloads the upstream Google Fonts variable TTF once into
+`~/.cache/sig-nature/`. To bypass automatic download, install Noto Sans Hebrew
+locally and set `SIG_NATURE_HEBREW_FONT` to its absolute `.ttf` path.
+Windows 10 is supported; no Node runtime is required to run the app.
+
 
 ## Tests
 
