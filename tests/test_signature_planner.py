@@ -27,7 +27,7 @@ def test_different_names_produce_different_paths() -> None:
     assert plan_signature("חגי און") != plan_signature("דני כהן")
 
 
-@pytest.mark.parametrize("name", ["", "   ", "חגי 123", "אבג hello"])
+@pytest.mark.parametrize("name", ["", "   ", "חגי 123", "abc✨"])
 def test_invalid_name_is_rejected(name: str) -> None:
     with pytest.raises(ValueError):
         plan_signature(name)
