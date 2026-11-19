@@ -44,7 +44,7 @@ GLYPHS: dict[str, tuple[Point, ...]] = {
 }
 
 
-def plan_signature(full_name: str, size: tuple[int, int] = (720, 720)) -> PenPath:
+def plan_signature(\n    full_name: str,\n    size: tuple[int, int] = (720, 720),\n    portrait: bytes = b"",\n) -> PenPath:
     """Plan a reproducible RTL, uninterrupted trajectory for a Hebrew name.
 
     Whitespace is represented by a continuous low connector stroke.
@@ -63,10 +63,15 @@ def plan_signature(full_name: str, size: tuple[int, int] = (720, 720)) -> PenPat
     if min(size) < 100:
         raise ValueError("Canvas is too small")
 
-    digest = sha256(normalized.encode("utf-8")).digest()
+    # Portrait bytes influence the geometry, not merely the filename.
+    # This does NOT detect facial expression or infer emotion.
+    digest = sha256(normalized.encode("utf-8") + b"\\x00" + portrait).digest()
+    portrait_style = sha256(portrait).digest() if portrait else bytes(32)
+    width_factor = 0.90 + portrait_style[0] / 255 * 0.20
+    height_factor = 0.90 + portrait_style[1] / 255 * 0.20
     letter_width = min(55.0, (size[0] - 110) / (len(letters) + .65 * (len(words)-1)))
-    baseline = size[1] * .53
-    height = min(95.0, size[1] * .16)
+    letter_width *= width_factor\n    baseline = size[1] * .53
+    height = min(95.0, size[1] * .16) * height_factor
     x_right = size[0] - 55.0
     result: list[Point] = []
 
