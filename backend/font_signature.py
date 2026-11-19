@@ -5,7 +5,7 @@ Noto Sans Hebrew is OFL-1.1; no font binaries are stored in this repository.
 """
 from collections import deque
 from hashlib import sha256
-from math import sin, pi, ceil
+from math import sin, pi, ceil, hypot
 from pathlib import Path
 import os
 from urllib.request import urlopen
@@ -166,7 +166,18 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
                 if pixels[x,y]>120}
         if not filled:raise ValueError('Missing letter geometry')
         skeleton=thin(filled)
-        route=pen_route(skeleton)
+        original_route=pen_route(skeleton)
+        route=[original_route[0]]
+        nib=ImageDraw.Draw(image)
+        for a,b in zip(original_route,original_route[1:]):
+            distance=hypot(b[0]-a[0],b[1]-a[1])
+            if distance>2.5:
+                # Disconnected font components need a real, faint ink bridge.
+                nib.line([a,b],fill=115,width=2)
+            steps=max(1,ceil(distance/2))
+            for j in range(1,steps+1):
+                t=j/steps
+                route.append((a[0]*(1-t)+b[0]*t,a[1]*(1-t)+b[1]*t))
         part=Image.new('L',size,0);part.paste(image,(left,top))
         glyphs=ImageChops.lighter(glyphs,part)
         points=[(x+left,y+top) for x,y in route]
