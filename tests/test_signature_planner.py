@@ -56,6 +56,7 @@ def test_latin_name_supported_without_lifting() -> None:
     path = plan_signature("Hagay Onn")
     assert len(path.points) > 2
     assert path.length > 0
+    assert path.points[-1][0] > path.points[0][0]
 
 
 def test_photo_scores_change_actual_pen_geometry() -> None:
