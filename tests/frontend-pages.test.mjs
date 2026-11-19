@@ -33,8 +33,9 @@ function fixture(mode, payload, options = {}) {
       createElement:tag=>({tag,textContent:""})
     },
     FormData:class{values=new Map();set(key,value){this.values.set(key,value);}},
-    fetch:async (url,options)=>{
-      request={url,options};
+    fetch:async (url,requestOptions)=>{
+      request={url,options:requestOptions};
+      if (options.fetchImpl) return options.fetchImpl(url,requestOptions);
       return options.error
         ? {ok:false,status:options.error.status,json:async()=>({detail:options.error.detail})}
         : {ok:true,json:async()=>payload};
