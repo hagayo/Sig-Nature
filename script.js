@@ -104,7 +104,7 @@ let language = "he";
 try {
   if (typeof localStorage !== "undefined" &&
       localStorage.getItem("sig-nature-language") === "en") language = "en";
-} catch (_) { /* Browser storage is optional. */ }
+} catch { /* Browser storage is optional. */ }
 let statusKey = null;
 let statusDetails = "";
 let latestAnalysis = null;
@@ -144,7 +144,7 @@ toggle.addEventListener("click", () => {
     if (typeof localStorage !== "undefined") {
       localStorage.setItem("sig-nature-language", language);
     }
-  } catch (_) { /* The interface still works without storage. */ }
+  } catch { /* The interface still works without storage. */ }
   renderLanguage();
 });
 
@@ -208,8 +208,13 @@ function showAnalysis(data) {
 }
 
 function localAssetUrl(value) {
-  return typeof value === "string" && value.startsWith("/") &&
-    !value.startsWith("//") ? value : null;
+  return typeof value === "string" &&
+    /^\/[A-Za-z0-9/_.-]+$/.test(value) &&
+    !value.includes("..") && !value.includes("//") ? value : null;
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function showGenerated(data) {
@@ -334,7 +339,7 @@ if (form) form.addEventListener("submit", async event => {
       resetResults();
       return;
     }
-    if (!payload || typeof payload !== "object") {
+    if (!isRecord(payload)) {
       setStatus("missing", "", true);
       return;
     }
@@ -345,8 +350,8 @@ if (form) form.addEventListener("submit", async event => {
       }
     } else {
       if (mode === "photo"
-          ? !payload.traits || !payload.writing_style
-          : !payload.analysis?.features) {
+          ? !isRecord(payload.traits) || !isRecord(payload.writing_style)
+          : !isRecord(payload.analysis) || !isRecord(payload.analysis.features)) {
         setStatus("missing", "", true);
         return;
       }
@@ -355,7 +360,7 @@ if (form) form.addEventListener("submit", async event => {
     }
     results.hidden = false;
     setStatus("ready");
-  } catch (_) {
+  } catch {
     if (inputRevision !== submittedRevision) resetResults();
     else setStatus("offline", "", true);
   } finally {
