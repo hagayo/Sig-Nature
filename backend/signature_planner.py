@@ -135,6 +135,10 @@ def plan_signature(
     alphabet = GLYPHS if hebrew else LATIN
     if style is None:
         style = WritingStyle()
+    if hebrew:
+        # Font masks and skeletonized trajectories replace the old ad-hoc glyphs.
+        from backend.font_signature import create_hebrew_signature
+        return create_hebrew_signature(name, style, portrait, size)
     fingerprint = sha256(name.encode("utf-8") + b"\x00" + portrait).digest()
     letter_width = min(54.0, 580/(len(letters)*style.spacing + len(words)))
     height = 94 * style.height
