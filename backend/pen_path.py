@@ -87,16 +87,19 @@ def _ink_layer(trace:tuple[tuple[Point,float],...],
                reveal_width:int = 8, complete:bool = False)->Image.Image:
     """Reveal only font ink touched by the continuous pen path, if supplied."""
     if artwork is not None:
-        swept=Image.new("L",size,255 if complete else 0)
-        if not complete:
-            writer=ImageDraw.Draw(swept)
-            if len(trace)>1:
-                writer.line([point for point,_ in trace],fill=255,
-                            width=reveal_width,joint="curve")
-            else:
-                x,y=trace[0][0]
-                radius=reveal_width/2
-                writer.ellipse((x-radius,y-radius,x+radius,y+radius),fill=255)
+        swept=Image.new("L",size,0)
+        writer=ImageDraw.Draw(swept)
+        if len(trace)>1:
+            writer.line([point for point,_ in trace],fill=255,
+                        width=reveal_width,joint="curve")
+        else:
+            x,y=trace[0][0]
+            radius=reveal_width/2
+            writer.ellipse((x-radius,y-radius,x+radius,y+radius),fill=255)
+        start_x,start_y=trace[0][0]
+        radius=reveal_width/2
+        writer.ellipse((start_x-radius,start_y-radius,
+                        start_x+radius,start_y+radius),fill=255)
         alpha=ImageChops.multiply(artwork,swept)
         result=Image.new("RGBA",size,(*INK,0))
         result.putalpha(alpha)
@@ -125,7 +128,7 @@ def render_signature(
     """Transparent PNG exactly matching the final animated ink."""
     _validate_bounds(path,size)
     output.parent.mkdir(parents=True,exist_ok=True)
-    _ink_layer(path.trace(1),size,path.artwork,path.reveal_width,True).save(output)
+    _ink_layer(path.trace(1),size,path.artwork,path.reveal_width,False).save(output)
     return output
 
 
@@ -157,7 +160,7 @@ def render_frames(
         trace=path.trace(elapsed ** (1.3 - .6*path.tempo))
         paper=Image.new("RGBA",size,"white")
         paper.alpha_composite(_paper_indent(trace,size))
-        paper.alpha_composite(_ink_layer(trace,size,path.artwork,path.reveal_width,index==FRAME_COUNT-1))
+        paper.alpha_composite(_ink_layer(trace,size,path.artwork,path.reveal_width,False))
         tip,_=trace[-1]
         x,y=tip
         pen=ImageDraw.Draw(paper)
