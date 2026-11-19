@@ -16,7 +16,7 @@ def test_motion_60fps_duration_follows_complexity() -> None:
     assert FRAME_RATE == 60
     assert a.frame_count > 36
     assert b.frame_count > a.frame_count
-    assert 2.7 <= a.writing_seconds <= 6.0
+    assert 5.1 <= a.writing_seconds <= 9.0
     assert b.duration > b.writing_seconds
 
 
@@ -71,3 +71,27 @@ def test_disconnected_glyph_parts_are_visibly_connected() -> None:
     # The bridge is deliberately a continuous visible line.
     assert any(hypot(b[0]-a[0],b[1]-a[1]) > 2
                for a,b in zip(route,route[1:]))
+
+
+def test_complex_signature_has_human_scale_pacing() -> None:
+    # Long handwriting should no longer be rushed into a 3-second stroke.
+    import math
+    points = tuple(
+        (400. - i*1.3, 350. + 18.*math.sin(i*.075))
+        for i in range(350)
+    )
+    path = PenPath(points, tempo=.5)
+    motion = MotionTimeline(path)
+    assert motion.writing_seconds >= 5.5
+    assert 5.5 < motion.duration <= 10.7
+    assert all(b > a for a, b in zip(motion.times, motion.times[1:]))
+
+
+def test_distance_aware_timing_stable_under_point_resampling() -> None:
+    # Densifying a straight stroke must not change its duration materially.
+    coarse = PenPath(tuple((float(x), 100.) for x in range(50, 551, 5)))
+    fine = PenPath(tuple((float(x), 100.) for x in range(50, 551)))
+    a, b = MotionTimeline(coarse), MotionTimeline(fine)
+    assert abs(a.writing_seconds-b.writing_seconds) < .05
+    assert abs(a.at(a.writing_seconds*.5).progress-.5) < .1
+    assert abs(b.at(b.writing_seconds*.5).progress-.5) < .1
