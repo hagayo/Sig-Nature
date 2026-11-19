@@ -139,13 +139,13 @@ def plan_signature(
     letter_width = min(54.0, 580/(len(letters)*style.spacing + len(words)))
     height = 94 * style.height
     advance = letter_width * style.spacing
-    x = 650.0
+    x = 70.0 if latin else 650.0
     baseline = 370.0
     path: list[Point] = []
     letter_index = 0
     for wi, word in enumerate(words):
         if wi:
-            x -= advance * .67
+            x += advance*.67 if latin else -advance*.67
         for ch in word:
             seed = fingerprint[letter_index % 32]
             shift = (seed/255 - .5)*style.irregularity*height*.25
@@ -155,30 +155,32 @@ def plan_signature(
                 y = (baseline+(gy-.5)*height
                      -style.rise*letter_index/max(1,len(letters)-1)*height*.60
                      +shift*(.3+gy))
-                x_pos = x - (1-gx)*width + style.slant*(gy-.5)*height
+                x_pos = ((x + gx*width - style.slant*(gy-.5)*height)
+                         if latin else (x - (1-gx)*width + style.slant*(gy-.5)*height))
                 anchors.append((x_pos,y))
             curved = _curve(anchors, style.roundness)
             if path:
                 path.extend(_connector(path[-1],curved[0],
                                        height*(.055+.025*style.speed)))
             path.extend(curved if not path else curved[1:])
-            x -= advance
+            x += advance if latin else -advance
             letter_index += 1
     # Finishing movement is still part of the same pen-down path.
     tail = path[-1]
     reach = height*(.2+style.flourish*.95+style.speed*.17)
     lift = height*(style.rise*.40 + style.flourish*.10)
     phase = fingerprint[-1]/255*pi
+    direction = 1 if latin else -1
     flourish_anchors = [
         tail,
-        (tail[0]-reach*.32,tail[1]-lift*.35),
-        (tail[0]-reach*.65,tail[1]-lift + 3*sin(phase)),
-        (tail[0]-reach,tail[1]-lift*.70),
+        (tail[0]+direction*reach*.32,tail[1]-lift*.35),
+        (tail[0]+direction*reach*.65,tail[1]-lift + 3*sin(phase)),
+        (tail[0]+direction*reach,tail[1]-lift*.70),
     ]
     if style.flourish > .72:
         flourish_anchors.extend([
-            (tail[0]-reach*1.15,tail[1]-lift*.45-height*.17),
-            (tail[0]-reach*1.0,tail[1]-lift*.22),
+            (tail[0]+direction*reach*1.15,tail[1]-lift*.45-height*.17),
+            (tail[0]+direction*reach*1.0,tail[1]-lift*.22),
         ])
     path.extend(_curve(flourish_anchors,style.roundness)[1:])
     min_x,max_x = min(p[0] for p in path),max(p[0] for p in path)
