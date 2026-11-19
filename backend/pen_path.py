@@ -17,6 +17,7 @@ class PenPath:
 
     points: tuple[Point, ...]
     pressures: tuple[float, ...] = ()
+    tempo: float = 0.5
 
     def __post_init__(self) -> None:
         if len(self.points) < 2:
@@ -27,6 +28,8 @@ class PenPath:
             raise ValueError("A pressure value is required for every pen point")
         if any(not isfinite(v) or not 0 <= v <= 1 for v in self.pressures):
             raise ValueError("Invalid pen pressure")
+        if not isfinite(self.tempo) or not 0 <= self.tempo <= 1:
+            raise ValueError("Invalid writing tempo")
         if self.length <= 0:
             raise ValueError("Pen path has zero length")
 
@@ -40,6 +43,10 @@ class PenPath:
         if not isfinite(fraction) or not 0 <= fraction <= 1:
             raise ValueError("Progress must be finite and between 0 and 1")
         pressure = self.pressures or (1.0,)*len(self.points)
+        if fraction == 1:
+            return tuple(zip(self.points, pressure))
+        if fraction == 0:
+            return ((self.points[0], pressure[0]),)
         remaining=self.length*fraction
         result=[(self.points[0],pressure[0])]
         for i,(a,b) in enumerate(zip(self.points,self.points[1:])):
@@ -123,7 +130,8 @@ def render_frames(
     _validate_bounds(path,size)
     frames_dir.mkdir(parents=True,exist_ok=True)
     for index in range(FRAME_COUNT):
-        trace=path.trace((index+1)/FRAME_COUNT)
+        elapsed=(index+1)/FRAME_COUNT
+        trace=path.trace(elapsed ** (1.3 - .6*path.tempo))
         paper=Image.new("RGBA",size,"white")
         paper.alpha_composite(_paper_indent(trace,size))
         paper.alpha_composite(_ink_layer(trace,size))
