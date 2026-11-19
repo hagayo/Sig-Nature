@@ -51,7 +51,7 @@ def test_generate_returns_both_asset_urls(
     assert response.status_code == 200
     assert response.json() == {
         "signature_png_url": f"/api/assets/{'a' * 32}/signature.png",
-        "animation_webm_url": f"/api/assets/{'a' * 32}/signature.webm",
+        "animation_mp4_url": f"/api/assets/{'a' * 32}/signature.mp4",
     }
 
 
