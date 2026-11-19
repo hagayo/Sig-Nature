@@ -53,11 +53,12 @@ def test_name_and_portrait_generate_real_mp4_and_transparent_png(
              str(first/"signature.mp4")], text=True,
         )
         assert "codec_name=h264" in meta
-        assert "nb_frames=36" in meta
         assert "r_frame_rate=60/1" in meta
-        duration = float(next(line.split("=")[1] for line in meta.splitlines()\n                              if line.startswith("duration=")))
+        duration = float(next(line.split("=")[1] for line in meta.splitlines()
+                              if line.startswith("duration=")))
         assert 2.7 <= duration <= 6.6
-        frame_count = int(next(line.split("=")[1] for line in meta.splitlines()\n                               if line.startswith("nb_frames=")))
+        frame_count = int(next(line.split("=")[1] for line in meta.splitlines()
+                               if line.startswith("nb_frames=")))
         assert frame_count == round(duration * 60)
     # No temporary frames, source photos, or API credentials are persisted.
     assert not list(tmp_path.glob("_building_*"))
