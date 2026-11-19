@@ -28,7 +28,8 @@ const translations = {
     flourish:"סלסול סיום",rise:"שיפוע כתיבה",spacing:"ריווח",
     description:"תיאור",signatureImpression:"רושם אמנותי",
     line_pressure:"לחץ הקו",rhythm:"קצב",connections:"חיבורים",
-    legibility:"קריאות"
+    legibility:"קריאות",letter_shapes:"צורות האותיות",
+    baseline:"כיוון שורת הכתיבה",stroke_variation:"שינויי עובי"
   },
   en: {
     navGenerate:"Create signature",navPhoto:"Analyze photo",navSignature:"Analyze signature",
@@ -53,7 +54,8 @@ const translations = {
     flourish:"Final flourish",rise:"Writing rise",spacing:"Spacing",
     description:"Description",signatureImpression:"Creative impression",
     line_pressure:"Line pressure",rhythm:"Rhythm",connections:"Connections",
-    legibility:"Legibility"
+    legibility:"Legibility",letter_shapes:"Letter shapes",
+    baseline:"Writing baseline",stroke_variation:"Stroke variation"
   }
 };
 let language = "he";
@@ -125,8 +127,12 @@ function showAnalysis(data) {
       .sort((a,b) => b[1]-a[1]).slice(0, 4)
       .filter(item => item[1] >= 0.55)
       .map(([name]) => translate(name));
-    description.textContent = translate("impression") + ": "
-      + (leaders.join(", ") || translate("unknown"));
+    const visibleCues = Array.isArray(data.cues) ? data.cues : [];
+    description.textContent = data.summary
+      ? [data.summary, ...visibleCues.map(cue => "• " + cue), data.vibe]
+          .filter(Boolean).join("\n")
+      : translate("impression") + ": "
+          + (leaders.join(", ") || translate("unknown"));
     showMetrics(info, data.traits);
     showMetrics(document.querySelector("#writing-details"), data.writing_style);
   } else {
