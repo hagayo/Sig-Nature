@@ -60,3 +60,22 @@ def test_fake_png_is_rejected() -> None:
 def test_over_limit_rejected() -> None:
     with pytest.raises(ValueError):
         validate_portrait(b"0" * (8 * 1024 * 1024 + 1))
+
+
+def test_large_portrait_is_resized_for_vision() -> None:
+    from backend.portrait_analysis import prepare_portrait_for_vision
+    original = BytesIO()
+    Image.new("RGB", (2400, 1200), (120, 150, 180)).save(original, format="PNG")
+    normalized = prepare_portrait_for_vision(original.getvalue())
+    with Image.open(BytesIO(normalized)) as image:
+        assert image.format == "JPEG"
+        assert image.size == (1600, 800)
+    assert len(normalized) < len(original.getvalue())
+
+
+def test_transparent_portrait_uses_white_background() -> None:
+    from backend.portrait_analysis import prepare_portrait_for_vision
+    original = BytesIO()
+    Image.new("RGBA", (64, 64), (255, 0, 0, 0)).save(original, format="PNG")
+    with Image.open(BytesIO(prepare_portrait_for_vision(original.getvalue()))) as image:
+        assert all(channel > 245 for channel in image.getpixel((32, 32)))
