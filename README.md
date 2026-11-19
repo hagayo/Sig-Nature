@@ -61,6 +61,20 @@ The command writes four isolated transparent PNGs and a 2-by-2 comparison
 image. Use `--font C:/path/to/GveretLevin-Regular.ttf` when offline. It is a
 visual inspection tool, not a claim that human handwriting realism is solved.
 
+### Local cinematic QA (no model charges)
+
+To inspect the **actual production macro compositor** instead of the old overhead
+sprite, render both a transparent PNG and a Full HD 60 FPS MP4:
+
+```sh
+python -m scripts.preview_cinema --name "חגי און" --style joyful --output cinematic-signature.mp4
+```
+
+Styles: `joyful`, `bold`, `calm` and `mysterious`. No real face is uploaded,
+and no OpenAI request is made. `--name "Hagay Onn"` also works offline
+without the Hebrew font. The renderer requires the two compact photographic
+assets under `backend/assets/` and FFmpeg with `libx264`.
+
 ## Local tests (do not trigger GitHub Actions)
 
 ```sh
