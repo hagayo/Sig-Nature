@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from math import acos, ceil, hypot, isfinite, pi, sqrt
 
 FRAME_RATE = 60
-FINISH_SECONDS = .50
+FINISH_SECONDS = 1.65
 
 
 @dataclass(frozen=True)
@@ -58,26 +58,44 @@ class MotionTimeline:
             if norms > 1e-8:
                 cosine = max(-1., min(1., (u[0]*v[0] + u[1]*v[1])/norms))
                 turns[i] = acos(cosine) / pi
+        # Plan local pen speed in travelled distance, not skeleton pixels.
+        # Slow down near bends, keep flowing connectors moving, and ease
+        # naturally into and out of the full signature without lifting.
+        turn_field = []
+        for i in range(n):
+            left = max(0, bisect_right(length, length[i] - 13.0) - 1)
+            right = min(n, bisect_right(length, length[i] + 13.0))
+            turn_field.append(sum(turns[left:right]) / max(1, right-left))
         targets = []
-        for i, bend in enumerate(turns):
-            lo, hi = max(0, i-4), min(n, i+5)
-            bend = sum(turns[lo:hi]) / (hi-lo)
+        for i, bend in enumerate(turn_field):
             progress = length[i] / self.length
-            envelope = max(.35, min(1., progress/.055, (1-progress)/.065))
-            targets.append((.36 + .64/(1 + 3.2*bend*bend)) * envelope)
-        weighted_turn = sum(turns) / max(1, n)
-        self.writing_seconds = max(2.7, min(6.0,
-            2.05 + .047 * sqrt(self.length) + .75 * weighted_turn
-            - .52 * (path.tempo - .5)))
-        raw = [0.]
+            envelope = min(1.0, max(.27, (progress/.06)**.6),
+                           max(.25, ((1.-progress)/.065)**.6))
+            connector = 1.12 if self.pressures[i] < .30 else 1.0
+            targets.append(max(.24, (.94 / (1. + 3.8*bend))*envelope*connector))
+        # Forward/backward smoothing removes one-pixel jerks in pen velocity.
+        filtered = targets[:]
         for i in range(1, n):
-            segment = length[i] - length[i-1]
-            speed = max(.20, (targets[i-1]+targets[i])/2)
-            raw.append(raw[-1] + segment/speed)
-        factor = self.writing_seconds / raw[-1]
-        self.times = [instant * factor for instant in raw]
+            alpha = min(.45, (length[i]-length[i-1])/7.)
+            filtered[i] = filtered[i-1]*(1-alpha)+targets[i]*alpha
+        for i in range(n-2,-1,-1):
+            alpha = min(.45, (length[i+1]-length[i])/7.)
+            filtered[i] = filtered[i+1]*(1-alpha)+filtered[i]*alpha
+        complexity = sum(turn_field[i]*(length[i+1]-length[i])
+                         for i in range(n-1))/self.length
+        # Human-scale writing: elaborate names take longer than a short mark.
+        self.writing_seconds = max(5.1, min(10.6,
+            4.55 + .085*sqrt(self.length) + 2.1*complexity
+            - .85*(path.tempo-.5)))
+        raw = [0.]
+        for i in range(1,n):
+            segment = length[i]-length[i-1]
+            speed = max(.19, (filtered[i-1]+filtered[i])/2.)
+            raw.append(raw[-1]+segment/speed)
+        factor = self.writing_seconds/raw[-1]
+        self.times = [instant*factor for instant in raw]
         self.duration = self.writing_seconds + FINISH_SECONDS
-        self.frame_count = ceil(self.duration * FRAME_RATE)
+        self.frame_count = ceil(self.duration*FRAME_RATE)
 
     def at(self, seconds: float) -> MotionState:
         if not isfinite(seconds):
