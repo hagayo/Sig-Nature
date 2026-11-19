@@ -5,7 +5,7 @@ Noto Sans Hebrew is OFL-1.1; no font binaries are stored in this repository.
 """
 from collections import deque
 from hashlib import sha256
-from math import sin, pi
+from math import sin, pi, ceil
 from pathlib import Path
 import os
 from urllib.request import urlopen
@@ -144,6 +144,15 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
         new_w=max(3,round(image.width*style.width*(1+irregular)))
         new_h=max(3,round(image.height*style.height))
         image=image.resize((new_w,new_h),Image.Resampling.LANCZOS)
+        if style.roundness > .65:
+            image=image.filter(ImageFilter.GaussianBlur(.5+(style.roundness-.65)*1.2))
+        if abs(style.slant) > .01:
+            shear=style.slant*.45
+            padding=ceil(abs(shear)*image.height)+4
+            image=image.transform(
+                (image.width+padding,image.height),Image.Transform.AFFINE,
+                (1,-shear,shear*image.height/2-padding/2,0,1,0),
+                resample=Image.Resampling.BICUBIC)
         if style.pressure>.80:image=image.filter(ImageFilter.MaxFilter(3))
         if style.pressure<.27:image=image.filter(ImageFilter.MinFilter(3))
         left=round(cursor-image.width+style.slant*font_size*.13)
@@ -173,4 +182,14 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
         all_points.extend(points);pressures.extend([style.pressure]*len(points))
         cursor-=font.getlength(char)*style.spacing
         index+=1
+    if style.flourish > .12:
+        start=all_points[-1]
+        reach=min(max(0,start[0]-22),font_size*(.14+.55*style.flourish))
+        if reach>3:
+            extension=[(start[0]-reach*(i/36),
+                        start[1]+font_size*.12*style.flourish*sin(pi*i/36)
+                        -font_size*.10*style.rise*i/36)
+                       for i in range(1,37)]
+            ImageDraw.Draw(glyphs).line([start]+extension,fill=130,width=2)
+            all_points.extend(extension);pressures.extend([.23]*len(extension))
     return PenPath(tuple(all_points),tuple(pressures),style.speed,artwork=glyphs)
