@@ -196,3 +196,46 @@ test("shared interface has matching Hebrew and English keys and no duplicated ca
     assert.match(html,/aria-atomic="true"/);
   }
 });
+
+
+test("discard in-flight portrait analysis if the selected image changes",async()=>{
+  let release;
+  const response = new Promise(resolve => { release = resolve; });
+  const screen=fixture("photo",{},{
+    fetchImpl:()=>response
+  });
+  screen.el("#api-key").value="temporary-key";
+  const submit=screen.el("#photo-analysis-form").handlers.submit({preventDefault(){}});
+  assert.equal(screen.el("#photo-analysis-form").dataset.busy,"true");
+  screen.el("#analysis-image").handlers.change();
+  release({ok:true,json:async()=>({
+    summary:"stale",cues:["stale"],vibe:"stale",
+    traits:{joy:1},writing_style:{pressure:.7}
+  })});
+  await submit;
+  assert.equal(screen.el("#results").hidden,true);
+  assert.equal(screen.el("#status").textContent,"");
+  assert.equal(screen.el("#photo-analysis-form").dataset.busy,"false");
+});
+
+test("do not submit twice or change analysis language while waiting",async()=>{
+  let release;
+  let calls=0;
+  const wait=new Promise(resolve=>{release=resolve;});
+  const screen=fixture("signature",{},{
+    fetchImpl:()=>{calls++;return wait;}
+  });
+  screen.el("#api-key").value="temporary-key";
+  const form=screen.el("#signature-analysis-form");
+  const first=form.handlers.submit({preventDefault(){}});
+  await form.handlers.submit({preventDefault(){}});
+  assert.equal(calls,1);
+  assert.equal(screen.el("#language-toggle").disabled,true);
+  release({ok:true,json:async()=>({
+    analysis:{description:"Observed line",impression:"Playful",
+              features:{legibility:"Moderate"}}
+  })});
+  await first;
+  assert.equal(screen.el("#language-toggle").disabled,false);
+  assert.equal(screen.el("#results").hidden,false);
+});
