@@ -194,4 +194,4 @@ def plan_signature(
                         *sin(i*.39+phase)))
         for i in range(len(fitted))
     )
-    return PenPath(fitted, pressures)
+    return PenPath(fitted, pressures, style.speed)
