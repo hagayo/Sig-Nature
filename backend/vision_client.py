@@ -54,13 +54,23 @@ async def request_vision(
             json=body,
         )
         response.raise_for_status()
-    data = response.json()
-    if data.get("status") not in (None, "completed"):
+    try:
+        data = response.json()
+    except ValueError as exc:
+        raise VisionResponseError("Invalid JSON from vision provider") from exc
+    if not isinstance(data, dict) or data.get("status") not in (None, "completed"):
         raise VisionResponseError("Analysis was not completed")
-    parts = [
-        part for item in data.get("output", [])
-        for part in item.get("content", [])
-    ]
+    output = data.get("output")
+    if not isinstance(output, list):
+        raise VisionResponseError("Analysis output is missing")
+    parts = []
+    for item in output:
+        if not isinstance(item, dict) or not isinstance(item.get("content"), list):
+            raise VisionResponseError("Malformed output content")
+        for part in item["content"]:
+            if not isinstance(part, dict):
+                raise VisionResponseError("Malformed model output item")
+            parts.append(part)
     if any(part.get("type") == "refusal" for part in parts):
         raise VisionResponseError("Analysis was refused")
     result = "".join(
