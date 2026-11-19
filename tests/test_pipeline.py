@@ -33,8 +33,8 @@ def test_name_and_portrait_generate_real_mp4_and_transparent_png(
     monkeypatch.setattr(service, "analyze_portrait", mock_vision)
     happy = portrait_bytes((255,220,100))
     tense = portrait_bytes((30,30,40))
-    a = asyncio.run(service.generate_signature("חגי און", happy, "fake-local-key"))
-    b = asyncio.run(service.generate_signature("חגי און", tense, "fake-local-key"))
+    a = asyncio.run(service.generate_signature("Hagay Onn", happy, "fake-local-key"))
+    b = asyncio.run(service.generate_signature("Hagay Onn", tense, "fake-local-key"))
     assert a.asset_id != b.asset_id
     first = tmp_path / a.asset_id
     second = tmp_path / b.asset_id
@@ -48,15 +48,17 @@ def test_name_and_portrait_generate_real_mp4_and_transparent_png(
     if shutil.which("ffprobe"):
         meta = subprocess.check_output(
             ["ffprobe", "-v", "error", "-select_streams", "v:0",
-             "-show_entries", "stream=codec_name,nb_frames,duration,r_frame_rate",
+             "-show_entries", "stream=codec_name,nb_frames,duration,r_frame_rate,width,height",
              "-of", "default=noprint_wrappers=1",
              str(first/"signature.mp4")], text=True,
         )
         assert "codec_name=h264" in meta
         assert "r_frame_rate=60/1" in meta
+        assert "width=1280" in meta
+        assert "height=720" in meta
         duration = float(next(line.split("=")[1] for line in meta.splitlines()
                               if line.startswith("duration=")))
-        assert 2.7 <= duration <= 6.6
+        assert 4.0 <= duration <= 7.5
         frame_count = int(next(line.split("=")[1] for line in meta.splitlines()
                                if line.startswith("nb_frames=")))
         assert frame_count == round(duration * 60)
