@@ -38,8 +38,9 @@ The handwritten font shapes and algorithmic one-stroke routing are an **artistic
 ## Analysis API
 
 - `POST /api/generate`: multipart `full_name`, `portrait`, `api_key` - returns `signature_png_url`, `animation_mp4_url`.
-- `POST /api/analyze-photo`: multipart `image`, `api_key`, `language` (`he`/`en`) - returns `traits` and `writing_style` exactly as used by generation.
-- `POST /api/analyze-signature`: multipart `image`, `api_key`, `language` - returns a narrative interpretation and visible features of the uploaded signature.
+- `POST /api/analyze-photo`: multipart `image`, `api_key`, `language` (`he`/`en`). Returns `summary`, `cues` (2-5 concrete visible clues), `vibe`, `traits` (18 calibrated values), and `writing_style` (the exact geometry controls used by generation). The photo preview uses EXIF-normalized, resized JPEG; the generated signature uses the same 18-score visual model.
+- `POST /api/analyze-signature`: multipart `image`, `api_key`, `language`. Returns a concise `analysis` of visible strokes and a playful character impression. Fine ink remains intact through a white-composited PNG upload. The analysis separates line appearance from actual writing pressure, and does not hallucinate a person's name.
+- Both analysis routes reject an unrecognizable image with HTTP 422. A malformed, refused or incomplete structured vision response returns 502, and provider errors are mapped separately. Prompts and JSON schemas live in `backend/portrait_analysis.py` and `backend/signature_analysis.py`; both use `backend/vision_client.py` for identical OpenAI request handling.
 
 Descriptions of personality and emotion are **creative impressions of an image**, not factual measurements.
 
