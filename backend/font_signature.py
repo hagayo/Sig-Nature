@@ -4,7 +4,6 @@ The open handwriting font supplies recognisable Hebrew letterforms. The pen
 route, joins and final flourishes are generated as ONE visible continuous ink
 trajectory, never an unrelated overlaid animation.
 """
-from collections import deque
 from hashlib import sha256
 from math import sin, pi, ceil, hypot
 from pathlib import Path
@@ -13,8 +12,9 @@ from urllib.request import urlopen
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
+from backend.stroke_route import route_skeleton
+
 HEBREW = set('אבגדהוזחטיכלמנסעפצקרשתךםןףץ')
-NEIGHBORS = ((1,0),(-1,0),(0,1),(0,-1),(1,1),(-1,1),(-1,-1),(1,-1))
 FONT_URL = ('https://raw.githubusercontent.com/AlefAlefAlef/gveret-levin/'
             'master/fonts/ttf/GveretLevin-Regular.ttf')
 
@@ -65,73 +65,6 @@ def thin(foreground: set[tuple[int,int]]) -> set[tuple[int,int]]:
             removed += len(discard)
         if not removed: break
     return mask
-
-
-def pen_route(skeleton: set[tuple[int,int]]) -> list[tuple[int,int]]:
-    """One DFS route through all glyph strokes, with short visible joins."""
-    edges = {p: {(p[0]+dx,p[1]+dy) for dx,dy in NEIGHBORS
-                 if (p[0]+dx,p[1]+dy) in skeleton} for p in skeleton}
-    components = []
-    seen = set()
-    for p in sorted(skeleton):
-        if p in seen: continue
-        todo=[p]; seen.add(p); part=[]
-        while todo:
-            node=todo.pop(); part.append(node)
-            for nxt in edges[node]:
-                if nxt not in seen: seen.add(nxt); todo.append(nxt)
-        components.append(part)
-    def stroke_ends(nodes: list[tuple[int,int]]) -> list[tuple[int,int]]:
-        # Real handwriting joins at stroke tips, not arbitrary interior pixels.
-        tips = [point for point in nodes if len(edges[point]) <= 1]
-        if tips:
-            return tips
-        # A closed loop has no tips; use a small deterministic set of extrema.
-        return list(set((
-            min(nodes, key=lambda p: (p[0], p[1])),
-            max(nodes, key=lambda p: (p[0], p[1])),
-            min(nodes, key=lambda p: (p[1], p[0])),
-            max(nodes, key=lambda p: (p[1], p[0])),
-        )))
-    while len(components)>1:
-        ends=[stroke_ends(part) for part in components]
-        _,a,b,ia,ib = min(
-            ((p[0]-q[0])**2+(p[1]-q[1])**2,p,q,i,j)
-            for i,left in enumerate(ends)
-            for j,right in enumerate(ends) if j>i
-            for p in left for q in right
-        )
-        edges[a].add(b); edges[b].add(a)
-        components[ia].extend(components[ib]); components.pop(ib)
-    tips=[p for p,n in edges.items() if len(n)<=1]
-    start=max(tips or list(skeleton),key=lambda p:(p[0],p[1]))
-    goal=min(tips or list(skeleton),key=lambda p:(p[0],-p[1]))
-    parents={start:None}; children={p:[] for p in skeleton}
-    todo=deque([start])
-    while todo:
-        node=todo.popleft()
-        for nxt in sorted(edges[node]):
-            if nxt not in parents:
-                parents[nxt]=node; children[node].append(nxt);todo.append(nxt)
-    spine=set(); node=goal
-    while node is not None: spine.add(node);node=parents[node]
-    positions=[start]
-    # Iterative traversal avoids recursion limits on long handwritten loops.
-    stack=[("visit",start)]
-    while stack:
-        operation,node=stack.pop()
-        if operation=="point":
-            positions.append(node)
-            continue
-        actions=[]
-        for nxt in children[node]:
-            if nxt not in spine:
-                actions.extend([("point",nxt),("visit",nxt),("point",node)])
-        for nxt in children[node]:
-            if nxt in spine:
-                actions.extend([("point",nxt),("visit",nxt)])
-        stack.extend(reversed(actions))
-    return positions
 
 
 def create_hebrew_signature(name: str, style, portrait: bytes = b'',
@@ -200,7 +133,7 @@ def create_hebrew_signature(name: str, style, portrait: bytes = b'',
                 if pixels[x,y]>120}
         if not filled:raise ValueError('Missing letter geometry')
         skeleton=thin(filled)
-        original_route=pen_route(skeleton)
+        original_route=route_skeleton(skeleton)
         route=[original_route[0]]
         bridge=Image.new('L',image.size,0)
         nib=ImageDraw.Draw(bridge)
