@@ -108,6 +108,22 @@ def _connector(start: Point, end: Point, depth: float) -> list[Point]:
     ]
 
 
+
+def validate_name(full_name: str) -> tuple[str, bool]:
+    """Check name without invoking the font loader or paid vision service."""
+    name = unicodedata.normalize("NFC", full_name).strip()
+    words = name.split()
+    if not words:
+        raise ValueError("Full name is required")
+    chars = [character for word in words for character in word]
+    if len(chars) > 32:
+        raise ValueError("Name exceeds 32 letters")
+    hebrew = all(character in GLYPHS for character in chars)
+    latin = all(character.lower() in LATIN for character in chars)
+    if not hebrew and not latin:
+        raise ValueError("Use Hebrew or English letters only, without mixing scripts")
+    return name, hebrew
+
 def plan_signature(
     full_name: str,
     size: tuple[int, int] = (720, 720),
@@ -119,19 +135,12 @@ def plan_signature(
     Photo-derived style is dominant; photo bytes only seed small glyph-level
     irregularities so even otherwise visually similar photos remain distinctive.
     """
-    name = unicodedata.normalize("NFC", full_name).strip()
+    name, hebrew = validate_name(full_name)
     words = name.split()
-    if not words:
-        raise ValueError("Full name is required")
     letters = [c for word in words for c in word]
-    if len(letters) > 32:
-        raise ValueError("Name exceeds 32 letters")
     if min(size) < 160:
         raise ValueError("Canvas is too small")
-    hebrew = all(c in GLYPHS for c in letters)
-    latin = all(c.lower() in LATIN for c in letters)
-    if not hebrew and not latin:
-        raise ValueError("Use Hebrew or English letters only, without mixing scripts")
+    latin = not hebrew
     alphabet = GLYPHS if hebrew else LATIN
     if style is None:
         style = WritingStyle()
