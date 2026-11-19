@@ -58,3 +58,20 @@ def test_determinism_with_identical_portrait() -> None:
     b = plan_signature("חגי און", portrait=b"same-picture")
     assert a.points == b.points
     assert a.artwork.tobytes() == b.artwork.tobytes()
+
+
+def test_pressure_is_visible_in_transparent_ink_not_only_in_video(
+    tmp_path: Path,
+) -> None:
+    from dataclasses import replace
+    from backend.style_mapping import WritingStyle
+    baseline = WritingStyle()
+    light = plan_signature("חגי און", style=replace(baseline, pressure=.2))
+    strong = plan_signature("חגי און", style=replace(baseline, pressure=.95))
+    light_png = render_signature(light, tmp_path / "light.png")
+    strong_png = render_signature(strong, tmp_path / "strong.png")
+    with Image.open(light_png) as pale, Image.open(strong_png) as bold:
+        assert sum(bold.getchannel("A").getdata()) > sum(
+            pale.getchannel("A").getdata()
+        )
+    assert max(strong.pressures) > min(strong.pressures)
