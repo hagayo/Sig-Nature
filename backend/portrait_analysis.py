@@ -12,7 +12,7 @@ import json
 import math
 
 import httpx
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 MODEL = "gpt-4.1-mini"
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
@@ -89,9 +89,30 @@ def validate_portrait(portrait: bytes) -> str:
         raise ValueError("Invalid image contents") from exc
 
 
+def prepare_portrait_for_vision(portrait: bytes) -> bytes:
+    """Honor EXIF rotation and reduce high-resolution images before API upload.
+
+    The full original image still seeds signature variation locally; OpenAI
+    receives only this downscaled, composited portrait.
+    """
+    validate_portrait(portrait)
+    with Image.open(BytesIO(portrait)) as original:
+        image = ImageOps.exif_transpose(original)
+        image.thumbnail((1600, 1600), Image.Resampling.LANCZOS)
+        if "A" in image.getbands() or "transparency" in image.info:
+            rgba = image.convert("RGBA")
+            rgb = Image.new("RGB", image.size, "white")
+            rgb.paste(rgba, mask=rgba.getchannel("A"))
+        else:
+            rgb = image.convert("RGB")
+        output = BytesIO()
+        rgb.save(output, format="JPEG", quality=88, optimize=True)
+        return output.getvalue()
+
+
 async def analyze_portrait(portrait: bytes, api_key: str) -> PortraitStyle:
     """Analyze the photo with the user's transient OpenAI API key."""
-    mime = validate_portrait(portrait)
+    resized_portrait = prepare_portrait_for_vision(portrait)
     if not api_key.strip():
         raise ValueError("OpenAI API key is required")
     keys = [field.name for field in fields(PortraitStyle)]
@@ -112,7 +133,7 @@ async def analyze_portrait(portrait: bytes, api_key: str) -> PortraitStyle:
         "input": [{"role": "user", "content": [
             {"type": "input_text", "text": PROMPT},
             {"type": "input_image", "image_url":
-                f"data:{mime};base64,{base64.b64encode(portrait).decode('ascii')}",
+                f"data:image/jpeg;base64,{base64.b64encode(resized_portrait).decode('ascii')}",
              "detail": "high"},
         ]}],
     }
